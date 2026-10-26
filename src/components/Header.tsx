@@ -164,7 +164,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div>
               <div className="flex items-center space-x-2">
                 <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-sky-400 via-indigo-200 to-white bg-clip-text text-transparent">
-                  Kepatuhan<span className="text-emerald-400">Plus</span>
+                  Building Assistance <span className="text-emerald-400">Jaksel</span>
                 </span>
                 <span className="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   OSS-RBA & BKPM

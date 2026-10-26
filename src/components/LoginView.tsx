@@ -88,7 +88,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         </div>
 
         <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-sky-400 via-indigo-200 to-white bg-clip-text text-transparent">
-          Kepatuhan<span className="text-emerald-400">Plus</span>
+          Building Assistance <span className="text-emerald-400">Jaksel</span>
         </h2>
         <p className="mt-1 text-xs text-slate-400 font-medium">
           Sistem Pengingat Masa Berlaku Perizinan &amp; Kepatuhan LKPM Terpadu OSS-RBA
