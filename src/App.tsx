@@ -1,0 +1,851 @@
+import React, { useState, useEffect } from 'react';
+import { Header } from './components/Header';
+import { DashboardView } from './components/DashboardView';
+import { PermitsManager } from './components/PermitsManager';
+import { LKPMManager } from './components/LKPMManager';
+import { BulkUploadLKPM } from './components/BulkUploadLKPM';
+import { WarningLetterGenerator } from './components/WarningLetterGenerator';
+import { EmailNotificationCenter } from './components/EmailNotificationCenter';
+import { RealTimeTracker } from './components/RealTimeTracker';
+import { NIBComparisonView } from './components/NIBComparisonView';
+import { UnifiedUploadView } from './components/UnifiedUploadView';
+import { LoginView } from './components/LoginView';
+
+import { 
+  Permit, 
+  LKPMRecord, 
+  WarningLetter, 
+  EmailLog, 
+  Company, 
+  ComplianceLogEvent,
+  UserAccount,
+  FollowUpStatus
+} from './types';
+
+import { 
+  INITIAL_COMPANIES, 
+  INITIAL_PERMITS, 
+  INITIAL_LKPM_RECORDS, 
+  INITIAL_WARNING_LETTERS, 
+  INITIAL_EMAIL_LOGS, 
+  INITIAL_COMPLIANCE_EVENTS,
+  DEFAULT_USERS
+} from './data/mockData';
+
+import { 
+  calculateDaysRemaining, 
+  generateEmailNotificationTemplate, 
+  formatIndonesianDate 
+} from './utils/helpers';
+
+export default function App() {
+  // Authentication State (Enforces username and password login)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('kp_isAuthenticated') === 'true';
+  });
+
+  // Active User Account (RBAC)
+  const [currentUser, setCurrentUser] = useState<UserAccount>(() => {
+    const saved = localStorage.getItem('kp_currentUser');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return DEFAULT_USERS[0];
+      }
+    }
+    return DEFAULT_USERS[0]; // Default Koordinator
+  });
+
+  // Navigation
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (currentUser.role === 'petugas') return 'upload';
+    if (currentUser.role === 'monitor') return 'dashboard';
+    return 'dashboard';
+  });
+
+  // Clean empty slate key to guarantee empty datasets
+  const CLEAN_SLATE_KEY = 'kp_clean_empty_slate_v4';
+
+  // Application State with LocalStorage Persistence (defaults to clean empty state)
+  const [companies, setCompanies] = useState<Company[]>(() => {
+    if (!localStorage.getItem(CLEAN_SLATE_KEY)) return [];
+    const saved = localStorage.getItem('kp_companies');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [permits, setPermits] = useState<Permit[]>(() => {
+    if (!localStorage.getItem(CLEAN_SLATE_KEY)) return [];
+    const saved = localStorage.getItem('kp_permits');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [lkpmRecords, setLkpmRecords] = useState<LKPMRecord[]>(() => {
+    if (!localStorage.getItem(CLEAN_SLATE_KEY)) return [];
+    const saved = localStorage.getItem('kp_lkpm');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [warningLetters, setWarningLetters] = useState<WarningLetter[]>(() => {
+    if (!localStorage.getItem(CLEAN_SLATE_KEY)) return [];
+    const saved = localStorage.getItem('kp_letters');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [emailLogs, setEmailLogs] = useState<EmailLog[]>(() => {
+    if (!localStorage.getItem(CLEAN_SLATE_KEY)) return [];
+    const saved = localStorage.getItem('kp_emails');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [complianceEvents, setComplianceEvents] = useState<ComplianceLogEvent[]>(() => {
+    if (!localStorage.getItem(CLEAN_SLATE_KEY)) return [];
+    const saved = localStorage.getItem('kp_events');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Automatically wipe any legacy cached data once to ensure complete clean slate
+  useEffect(() => {
+    if (!localStorage.getItem(CLEAN_SLATE_KEY)) {
+      localStorage.setItem(CLEAN_SLATE_KEY, 'true');
+      localStorage.setItem('kp_companies', JSON.stringify([]));
+      localStorage.setItem('kp_permits', JSON.stringify([]));
+      localStorage.setItem('kp_lkpm', JSON.stringify([]));
+      localStorage.setItem('kp_letters', JSON.stringify([]));
+      localStorage.setItem('kp_emails', JSON.stringify([]));
+      localStorage.setItem('kp_events', JSON.stringify([]));
+      setCompanies([]);
+      setPermits([]);
+      setLkpmRecords([]);
+      setWarningLetters([]);
+      setEmailLogs([]);
+      setComplianceEvents([]);
+    }
+  }, []);
+
+  // Letter generator prefill state
+  const [activeLetterItem, setActiveLetterItem] = useState<{ type: 'PERMIT' | 'LKPM' | 'DUAL_VIOLATION'; record: any } | null>(null);
+
+  // Syncing state
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [globalToast, setGlobalToast] = useState<{ message: string; type: 'success' | 'info' | 'danger' } | null>(null);
+
+  useEffect(() => {
+    localStorage.setItem('kp_currentUser', JSON.stringify(currentUser));
+  }, [currentUser]);
+
+  // Sync to LocalStorage
+  useEffect(() => {
+    localStorage.setItem('kp_companies', JSON.stringify(companies));
+  }, [companies]);
+
+  useEffect(() => {
+    localStorage.setItem('kp_permits', JSON.stringify(permits));
+  }, [permits]);
+
+  useEffect(() => {
+    localStorage.setItem('kp_lkpm', JSON.stringify(lkpmRecords));
+  }, [lkpmRecords]);
+
+  useEffect(() => {
+    localStorage.setItem('kp_letters', JSON.stringify(warningLetters));
+  }, [warningLetters]);
+
+  useEffect(() => {
+    localStorage.setItem('kp_emails', JSON.stringify(emailLogs));
+  }, [emailLogs]);
+
+  useEffect(() => {
+    localStorage.setItem('kp_events', JSON.stringify(complianceEvents));
+  }, [complianceEvents]);
+
+  const showToast = (message: string, type: 'success' | 'info' | 'danger' = 'success') => {
+    setGlobalToast({ message, type });
+    setTimeout(() => setGlobalToast(null), 4000);
+  };
+
+  // Log a compliance event
+  const addComplianceEvent = (
+    type: ComplianceLogEvent['type'],
+    title: string,
+    description: string,
+    severity: ComplianceLogEvent['severity'],
+    entityName: string
+  ) => {
+    const newEvent: ComplianceLogEvent = {
+      id: `ev-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      type,
+      title,
+      description,
+      severity,
+      entityName
+    };
+    setComplianceEvents((prev) => [newEvent, ...prev]);
+  };
+
+  // Add new permit
+  const handleAddPermit = (newPermitData: Omit<Permit, 'id'>) => {
+    const newPermit: Permit = {
+      ...newPermitData,
+      id: `prm-${Date.now()}`
+    };
+    setPermits((prev) => [newPermit, ...prev]);
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Perizinan Baru Didaftarkan',
+      `Dokumen "${newPermit.permitName}" (No: ${newPermit.documentNumber}) berhasil didaftarkan ke sistem.`,
+      'info',
+      newPermit.companyName
+    );
+    showToast(`Perizinan "${newPermit.permitName}" berhasil ditambahkan!`);
+  };
+
+  // Bulk Import Permits via Excel / CSV (auto-registers company profiles)
+  const handleBulkImportPermits = (imported: Permit[]) => {
+    setPermits((prev) => [...imported, ...prev]);
+
+    // Auto-register companies from permit spreadsheet rows
+    setCompanies((prev) => {
+      const existingNames = new Set(prev.map((c) => c.name.toLowerCase()));
+      const toAdd: Company[] = [];
+      imported.forEach((p) => {
+        const nameLower = p.companyName.trim().toLowerCase();
+        if (p.companyName && !existingNames.has(nameLower) && !toAdd.some((c) => c.name.toLowerCase() === nameLower)) {
+          toAdd.push({
+            id: p.companyId || `comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            name: p.companyName,
+            nib: p.nib || '0000000000000',
+            npwp: '-',
+            address: 'Indonesia',
+            city: '-',
+            province: '-',
+            picName: p.picName || 'Penanggung Jawab',
+            picEmail: p.picEmail || 'andri.cimb@gmail.com',
+            picPhone: '-',
+            scale: 'Besar',
+            sector: p.category || 'Umum'
+          });
+        }
+      });
+      return [...prev, ...toAdd];
+    });
+
+    addComplianceEvent(
+      'DATA_IMPORTED',
+      'Bulk Upload Perizinan Selesai',
+      `Berhasil mengimpor massal ${imported.length} dokumen perizinan dari berkas spreadsheet.`,
+      'success',
+      'Sistem Terpadu'
+    );
+    showToast(`Berhasil mengimpor ${imported.length} data perizinan!`, 'success');
+  };
+
+  const handleUpdatePermit = (updated: Permit) => {
+    setPermits((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Dokumen Perizinan Diperbarui',
+      `Masa berlaku atau data "${updated.permitName}" diperbarui (Kedaluwarsa: ${formatIndonesianDate(updated.expiryDate)}).`,
+      'info',
+      updated.companyName
+    );
+    showToast('Data perizinan berhasil diperbarui!');
+  };
+
+  const handleDeletePermit = (id: string) => {
+    const permit = permits.find((p) => p.id === id);
+    if (!confirm(`Hapus perizinan "${permit?.permitName || id}"?`)) return;
+    setPermits((prev) => prev.filter((p) => p.id !== id));
+    showToast('Perizinan berhasil dihapus.');
+  };
+
+  // Add LKPM
+  const handleAddLKPM = (recordData: Omit<LKPMRecord, 'id'>) => {
+    const newRecord: LKPMRecord = {
+      ...recordData,
+      id: `lkpm-${Date.now()}`
+    };
+    setLkpmRecords((prev) => [newRecord, ...prev]);
+    addComplianceEvent(
+      'DATA_IMPORTED',
+      'Kewajiban LKPM Ditambahkan',
+      `Proyek KBLI ${newRecord.kbliCode} (${newRecord.period} ${newRecord.year}) didaftarkan untuk pengawasan.`,
+      newRecord.status === 'Belum Lapor' ? 'warning' : 'info',
+      newRecord.companyName
+    );
+    showToast('Data LKPM berhasil ditambahkan!');
+  };
+
+  const handleUpdateLKPM = (updated: LKPMRecord) => {
+    setLkpmRecords((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Status LKPM Diperbarui',
+      `Status pelaporan LKPM ${updated.period} ${updated.year} (KBLI ${updated.kbliCode}) diubah menjadi "${updated.status}".`,
+      updated.status === 'Disetujui' ? 'success' : 'info',
+      updated.companyName
+    );
+    showToast(`Status LKPM diubah menjadi ${updated.status}`);
+  };
+
+  const handleDeleteLKPM = (id: string) => {
+    const item = lkpmRecords.find((l) => l.id === id);
+    if (!confirm(`Hapus data LKPM ${item?.companyName} (${item?.period})?`)) return;
+    setLkpmRecords((prev) => prev.filter((l) => l.id !== id));
+    showToast('Data LKPM berhasil dihapus.');
+  };
+
+  // Bulk Import LKPM (auto-registers company profiles)
+  const handleBulkImportLKPM = (imported: LKPMRecord[]) => {
+    setLkpmRecords((prev) => [...imported, ...prev]);
+
+    // Auto-register companies from LKPM spreadsheet rows
+    setCompanies((prev) => {
+      const existingNames = new Set(prev.map((c) => c.name.toLowerCase()));
+      const toAdd: Company[] = [];
+      imported.forEach((l) => {
+        const nameLower = l.companyName.trim().toLowerCase();
+        if (l.companyName && !existingNames.has(nameLower) && !toAdd.some((c) => c.name.toLowerCase() === nameLower)) {
+          toAdd.push({
+            id: l.companyId || `comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            name: l.companyName,
+            nib: l.nib || '0000000000000',
+            npwp: '-',
+            address: l.projectLocation || 'Indonesia',
+            city: '-',
+            province: '-',
+            picName: l.picName || 'Penanggung Jawab',
+            picEmail: l.picEmail || 'andri.cimb@gmail.com',
+            picPhone: '-',
+            scale: l.scale || 'Besar',
+            sector: l.kbliTitle || 'Umum'
+          });
+        }
+      });
+      return [...prev, ...toAdd];
+    });
+
+    addComplianceEvent(
+      'DATA_IMPORTED',
+      'Bulk Upload LKPM Selesai',
+      `Berhasil mengimpor massal ${imported.length} data LKPM dari file spreadsheet.`,
+      'success',
+      'Sistem Terpadu'
+    );
+    showToast(`Berhasil mengimpor ${imported.length} data LKPM!`, 'success');
+  };
+
+  // Wipe / Empty all Data (Perizinan OSS & LKPM)
+  const handleClearAllData = () => {
+    if (confirm('Apakah Anda yakin ingin mengosongkan seluruh data Perizinan (OSS) dan LKPM?')) {
+      setCompanies([]);
+      setPermits([]);
+      setLkpmRecords([]);
+      setWarningLetters([]);
+      setEmailLogs([]);
+      setComplianceEvents([]);
+      localStorage.setItem('kp_companies', JSON.stringify([]));
+      localStorage.setItem('kp_permits', JSON.stringify([]));
+      localStorage.setItem('kp_lkpm', JSON.stringify([]));
+      localStorage.setItem('kp_letters', JSON.stringify([]));
+      localStorage.setItem('kp_emails', JSON.stringify([]));
+      localStorage.setItem('kp_events', JSON.stringify([]));
+      showToast('Seluruh data Perizinan dan LKPM berhasil dikosongkan!', 'info');
+    }
+  };
+
+  // Warning Letter Save
+  const handleSaveLetter = (letter: WarningLetter) => {
+    setWarningLetters((prev) => [letter, ...prev]);
+    addComplianceEvent(
+      'LETTER_GENERATED',
+      'Surat Teguran Resmi Diterbitkan',
+      `Surat No. ${letter.letterNumber} (${letter.type}) diterbitkan untuk ${letter.companyName}.`,
+      'warning',
+      letter.companyName
+    );
+    showToast(`Surat Teguran No. ${letter.letterNumber} berhasil disimpan dalam arsip.`);
+  };
+
+  // Email sending
+  const handleSendEmail = (log: Omit<EmailLog, 'id'>) => {
+    const newLog: EmailLog = {
+      ...log,
+      id: `em-${Date.now()}`
+    };
+    setEmailLogs((prev) => [newLog, ...prev]);
+    addComplianceEvent(
+      'EMAIL_SENT',
+      'Email Notifikasi Terkirim',
+      `Email peringatan dikirimkan ke ${log.recipientEmail} (${log.subject}).`,
+      'info',
+      log.companyName
+    );
+    showToast(`Notifikasi email berhasil dikirim ke ${log.recipientEmail}!`, 'success');
+  };
+
+  // Direct 1-click email trigger from table
+  const handleDirectSendEmail = (type: 'PERMIT' | 'LKPM', record: any) => {
+    let days = 0;
+    let title = '';
+    let email = record.picEmail || 'andri.cimb@gmail.com';
+    let pic = record.picName || 'Penanggung Jawab';
+    let comp = record.companyName;
+
+    if (type === 'PERMIT') {
+      days = calculateDaysRemaining(record.expiryDate);
+      title = record.permitName;
+    } else {
+      days = calculateDaysRemaining(record.deadlineDate);
+      title = `LKPM ${record.period} ${record.year} (KBLI ${record.kbliCode})`;
+    }
+
+    const html = generateEmailNotificationTemplate(type, pic, comp, title, days);
+
+    handleSendEmail({
+      recipientEmail: email,
+      recipientName: pic,
+      companyName: comp,
+      category: type === 'PERMIT' ? 'Pengingat Perizinan' : 'Teguran LKPM',
+      subject: `[PERINGATAN RESMI] Pengingat Kepatuhan: ${title}`,
+      bodyPreview: `Pemberitahuan resmi mengenai ${title} untuk ${comp}.`,
+      fullHtml: html,
+      sentAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      status: 'Berhasil Terkirim',
+      triggerType: 'Manual Admin'
+    });
+  };
+
+  // Open Letter Generator with preselected item
+  const handleOpenLetterWithItem = (item: { type: 'PERMIT' | 'LKPM' | 'DUAL_VIOLATION'; record: any }) => {
+    setActiveLetterItem(item);
+    setActiveTab('letters');
+  };
+
+  // Open Letter Generator with Combined Dual-Violation items
+  const handleOpenCombinedLetter = (company: Company, compPermits: Permit[], compLKPM: LKPMRecord[]) => {
+    setActiveLetterItem({
+      type: 'DUAL_VIOLATION',
+      record: { company, permits: compPermits, lkpm: compLKPM }
+    });
+    setActiveTab('letters');
+    showToast(`Membuka form Surat Teguran Terpadu untuk ${company.name} (NIB: ${company.nib})`, 'info');
+  };
+
+  // Direct 1-click combined email trigger from NIB comparison
+  const handleSendCombinedEmail = (company: Company, compPermits: Permit[], compLKPM: LKPMRecord[]) => {
+    const expiredPermits = compPermits.filter((p) => calculateDaysRemaining(p.expiryDate) <= 30);
+    const unfiledLKPM = compLKPM.filter((l) => l.status === 'Belum Lapor' || l.status === 'Perlu Perbaikan');
+
+    const permitDetails = expiredPermits.map((p) => `• <strong>${p.permitName}</strong> (No: ${p.documentNumber}, Kedaluwarsa: ${formatIndonesianDate(p.expiryDate)})`).join('<br/>');
+    const lkpmDetails = unfiledLKPM.map((l) => `• <strong>LKPM ${l.period} ${l.year}</strong> (KBLI ${l.kbliCode}, Batas Lapor: ${formatIndonesianDate(l.deadlineDate)})`).join('<br/>');
+
+    const detailsHtml = `
+      <div style="margin-bottom: 12px; padding: 10px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 6px;">
+        <strong style="color: #991b1b; font-size: 13px;">1. Dokumen Perizinan Kedaluwarsa / Kritis:</strong><br/>
+        <div style="margin-top: 4px; font-size: 12px; color: #4c0519;">${permitDetails || 'Menunggu perpanjangan izin'}</div>
+      </div>
+      <div style="padding: 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px;">
+        <strong style="color: #166534; font-size: 13px;">2. Kewajiban Pelaporan LKPM yang Belum Disampaikan:</strong><br/>
+        <div style="margin-top: 4px; font-size: 12px; color: #14532d;">${lkpmDetails || 'Tunggakan laporan investasi'}</div>
+      </div>
+    `;
+
+    const html = generateEmailNotificationTemplate(
+      'DUAL_VIOLATION',
+      company.picName,
+      company.name,
+      `Pelanggaran Terpadu (${company.name})`,
+      -1,
+      detailsHtml,
+      company.nib
+    );
+
+    handleSendEmail({
+      recipientEmail: company.picEmail,
+      recipientName: company.picName,
+      companyName: company.name,
+      category: 'Teguran Terpadu NIB',
+      subject: `[PERINGATAN RESMI TERPADU] Pelanggaran Ganda Perizinan & LKPM: ${company.name} (NIB: ${company.nib})`,
+      bodyPreview: `Pemberitahuan resmi pelanggaran ganda perizinan dan kewajiban pelaporan LKPM untuk NIB ${company.nib}.`,
+      fullHtml: html,
+      sentAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      status: 'Berhasil Terkirim',
+      triggerType: 'Peringatan Darurat'
+    });
+  };
+
+  // Batch Auto-Check & Scheduler Run
+  const handleRunBatchScheduler = () => {
+    const sentMessages: string[] = [];
+    let count = 0;
+
+    // Scan permits
+    permits.forEach((p) => {
+      const days = calculateDaysRemaining(p.expiryDate);
+      // If expiring soon (H-90, H-30, H-14, H-7, or expired)
+      if (days <= 30 || days < 0) {
+        const html = generateEmailNotificationTemplate('PERMIT', p.picName, p.companyName, p.permitName, days);
+        handleSendEmail({
+          recipientEmail: p.picEmail,
+          recipientName: p.picName,
+          companyName: p.companyName,
+          category: 'Pengingat Perizinan',
+          subject: `[JADWAL OTOMATIS] Peringatan Masa Berlaku: ${p.permitName}`,
+          bodyPreview: `Masa berlaku tersisa ${days} hari lagi.`,
+          fullHtml: html,
+          sentAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+          status: 'Berhasil Terkirim',
+          triggerType: days < 0 ? 'Peringatan Darurat' : 'Otomatis (Jadwal H-30)'
+        });
+        sentMessages.push(`Terkirim ke ${p.picEmail} (${p.permitName})`);
+        count++;
+      }
+    });
+
+    // Scan LKPM
+    lkpmRecords.forEach((l) => {
+      if (l.status === 'Belum Lapor') {
+        const days = calculateDaysRemaining(l.deadlineDate);
+        const html = generateEmailNotificationTemplate('LKPM', l.picName, l.companyName, `${l.period} ${l.year}`, days);
+        handleSendEmail({
+          recipientEmail: l.picEmail,
+          recipientName: l.picName,
+          companyName: l.companyName,
+          category: 'Teguran LKPM',
+          subject: `[JADWAL OTOMATIS] Teguran Pelaporan LKPM: ${l.companyName} (${l.period})`,
+          bodyPreview: `Kewajiban LKPM belum disampaikan. Batas akhir: ${formatIndonesianDate(l.deadlineDate)}.`,
+          fullHtml: html,
+          sentAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+          status: 'Berhasil Terkirim',
+          triggerType: 'Peringatan Darurat'
+        });
+        sentMessages.push(`Terkirim ke ${l.picEmail} (LKPM ${l.period})`);
+        count++;
+      }
+    });
+
+    return { sentCount: count, messages: sentMessages };
+  };
+
+  // Real-Time Audit Sync simulation
+  const handleForceRefreshAudit = () => {
+    setIsSyncing(true);
+    setTimeout(() => {
+      setIsSyncing(false);
+      addComplianceEvent(
+        'STATUS_UPDATED',
+        'Audit Kepatuhan Real-Time Sinkron',
+        'Sistem telah memverifikasi seluruh tanggal kedaluwarsa dokumen dan status LKPM terkini.',
+        'info',
+        'Seluruh Entitas'
+      );
+      showToast('Sinkronisasi dan audit real-time berhasil diperbarui!', 'success');
+    }, 800);
+  };
+
+  // Login handler
+  const handleLoginSuccess = (user: UserAccount) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+    localStorage.setItem('kp_isAuthenticated', 'true');
+    localStorage.setItem('kp_currentUser', JSON.stringify(user));
+
+    if (user.role === 'petugas') {
+      setActiveTab('upload');
+    } else if (user.role === 'monitor') {
+      setActiveTab('dashboard');
+    } else {
+      setActiveTab('dashboard');
+    }
+
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Pengguna Berhasil Masuk',
+      `Sesi login aktif untuk ${user.name} (${user.roleTitle}) dengan verifikasi kata sandi.`,
+      'info',
+      user.name
+    );
+    showToast(`Selamat datang, ${user.name}! Anda masuk sebagai ${user.roleTitle}.`, 'success');
+  };
+
+  // Logout handler
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('kp_isAuthenticated');
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Sesi Pengguna Berakhir',
+      `Pengguna ${currentUser.name} telah keluar dari sistem.`,
+      'info',
+      currentUser.name
+    );
+    showToast('Anda telah keluar dari sistem. Silakan masuk kembali.', 'info');
+  };
+
+  // Switch User Account
+  const handleSwitchUser = (selectedUser: UserAccount) => {
+    setCurrentUser(selectedUser);
+    showToast(`Beralih akun ke: ${selectedUser.name} (${selectedUser.roleTitle})`, 'info');
+    if (selectedUser.role === 'petugas') {
+      setActiveTab('upload');
+    } else if (selectedUser.role === 'monitor') {
+      setActiveTab('dashboard');
+    } else if (selectedUser.role === 'koordinator') {
+      if (activeTab === 'upload' || activeTab === 'permits' || activeTab === 'lkpm') {
+        setActiveTab('dashboard');
+      }
+    }
+  };
+
+  // Enforce strict role-based tab boundaries
+  // - Monitor: strictly dashboard
+  // - Petugas: strictly upload
+  // - Koordinator: dashboard, compare, letters, notifications, tracking (no permits, lkpm, or upload)
+  useEffect(() => {
+    if (currentUser.role === 'monitor' && activeTab !== 'dashboard') {
+      setActiveTab('dashboard');
+    } else if (currentUser.role === 'petugas' && activeTab !== 'upload') {
+      setActiveTab('upload');
+    } else if (currentUser.role === 'koordinator' && (activeTab === 'permits' || activeTab === 'lkpm' || activeTab === 'upload')) {
+      setActiveTab('dashboard');
+    }
+  }, [currentUser.role, activeTab]);
+
+  // Follow Up Status Updates
+  const handleUpdatePermitFollowUp = (permitId: string, status: FollowUpStatus) => {
+    setPermits((prev) =>
+      prev.map((p) =>
+        p.id === permitId
+          ? {
+              ...p,
+              followUpStatus: status,
+              followUpDate: status === 'Sudah Ditindaklanjuti' ? new Date().toISOString().split('T')[0] : p.followUpDate,
+            }
+          : p
+      )
+    );
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Status Tindak Lanjut Perizinan Berubah',
+      `Perizinan ID ${permitId} ditandai sebagai "${status}".`,
+      status === 'Sudah Ditindaklanjuti' ? 'success' : 'warning',
+      'Admin Monitoring'
+    );
+    showToast(`Status tindak lanjut perizinan diubah: "${status}"!`);
+  };
+
+  const handleUpdateLKPMFollowUp = (lkpmId: string, status: FollowUpStatus) => {
+    setLkpmRecords((prev) =>
+      prev.map((l) =>
+        l.id === lkpmId
+          ? {
+              ...l,
+              followUpStatus: status,
+              followUpDate: status === 'Sudah Ditindaklanjuti' ? new Date().toISOString().split('T')[0] : l.followUpDate,
+            }
+          : l
+      )
+    );
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Status Tindak Lanjut LKPM Berubah',
+      `Kewajiban LKPM ID ${lkpmId} ditandai sebagai "${status}".`,
+      status === 'Sudah Ditindaklanjuti' ? 'success' : 'warning',
+      'Admin Monitoring'
+    );
+    showToast(`Status tindak lanjut LKPM diubah: "${status}"!`);
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <>
+        {globalToast && (
+          <div className="fixed top-6 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center space-x-3 no-print animate-slide-in">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+            <span className="text-xs font-semibold">{globalToast.message}</span>
+          </div>
+        )}
+        <LoginView onLoginSuccess={handleLoginSuccess} />
+      </>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-100/70 text-slate-900 flex flex-col font-sans">
+      {/* Global Notification Toast */}
+      {globalToast && (
+        <div className="fixed top-20 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center space-x-3 no-print animate-slide-in">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+          <span className="text-xs font-semibold">{globalToast.message}</span>
+        </div>
+      )}
+
+      {/* Header and Nav */}
+      <Header
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        permits={permits}
+        lkpmRecords={lkpmRecords}
+        companies={companies}
+        currentUser={currentUser}
+        users={DEFAULT_USERS}
+        onSwitchUser={handleSwitchUser}
+        onLogout={handleLogout}
+        onClearAllData={handleClearAllData}
+        onQuickAddPermit={() => setActiveTab('upload')}
+        onQuickUploadLKPM={() => setActiveTab('upload')}
+        onOpenLetterGenerator={() => setActiveTab('letters')}
+        onRunAutoCheck={handleForceRefreshAudit}
+        isChecking={isSyncing}
+      />
+
+      {/* Main Body Content */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {activeTab === 'dashboard' && (
+          <DashboardView
+            permits={permits}
+            lkpmRecords={lkpmRecords}
+            warningLetters={warningLetters}
+            companies={companies}
+            currentUser={currentUser}
+            onNavigateTab={setActiveTab}
+            onOpenLetterWithItem={handleOpenLetterWithItem}
+            onSendDirectEmail={handleDirectSendEmail}
+            onAddNewPermit={() => setActiveTab('permits')}
+          />
+        )}
+
+        {activeTab === 'compare' && (
+          <NIBComparisonView
+            companies={companies}
+            permits={permits}
+            lkpmRecords={lkpmRecords}
+            currentUserRole={currentUser.role}
+            onOpenCombinedLetter={handleOpenCombinedLetter}
+            onSendCombinedEmail={handleSendCombinedEmail}
+            onNavigateTab={setActiveTab}
+          />
+        )}
+
+        {activeTab === 'permits' && (
+          <PermitsManager
+            permits={permits}
+            companies={companies}
+            currentUserRole={currentUser.role}
+            onAddPermit={handleAddPermit}
+            onBulkImportPermits={handleBulkImportPermits}
+            onUpdatePermit={handleUpdatePermit}
+            onDeletePermit={handleDeletePermit}
+            onUpdateFollowUp={handleUpdatePermitFollowUp}
+            onSendEmailPrompt={(p) => handleDirectSendEmail('PERMIT', p)}
+            onOpenLetterGenerator={(p) => handleOpenLetterWithItem({ type: 'PERMIT', record: p })}
+          />
+        )}
+
+        {activeTab === 'lkpm' && (
+          <LKPMManager
+            lkpmRecords={lkpmRecords}
+            companies={companies}
+            currentUserRole={currentUser.role}
+            onAddLKPM={handleAddLKPM}
+            onUpdateLKPM={handleUpdateLKPM}
+            onDeleteLKPM={handleDeleteLKPM}
+            onUpdateFollowUp={handleUpdateLKPMFollowUp}
+            onSendEmailPrompt={(l) => handleDirectSendEmail('LKPM', l)}
+            onOpenLetterGenerator={(l) => handleOpenLetterWithItem({ type: 'LKPM', record: l })}
+            onNavigateBulkUpload={() => setActiveTab('upload')}
+          />
+        )}
+
+        {activeTab === 'upload' && (
+          <UnifiedUploadView
+            companies={companies}
+            permits={permits}
+            lkpmRecords={lkpmRecords}
+            currentUser={currentUser}
+            onBulkImportPermits={handleBulkImportPermits}
+            onBulkImportLKPM={handleBulkImportLKPM}
+            onDeletePermit={handleDeletePermit}
+            onDeleteLKPM={handleDeleteLKPM}
+          />
+        )}
+
+        {activeTab === 'letters' && (
+          <WarningLetterGenerator
+            companies={companies}
+            permits={permits}
+            lkpmRecords={lkpmRecords}
+            savedLetters={warningLetters}
+            currentUserRole={currentUser.role}
+            initialItem={activeLetterItem}
+            onSaveLetter={handleSaveLetter}
+            onSendEmailWithLetter={(letter) => {
+              handleSaveLetter(letter);
+              handleSendEmail({
+                recipientEmail: letter.recipientEmail,
+                recipientName: letter.recipientName,
+                companyName: letter.companyName,
+                category: 'Surat Resmi Terbit',
+                subject: `[RESMI] ${letter.letterNumber} - ${letter.type}`,
+                bodyPreview: `Penerbitan surat teguran resmi untuk ${letter.companyName}.`,
+                fullHtml: generateEmailNotificationTemplate(
+                  'WARNING_LETTER',
+                  letter.recipientName,
+                  letter.companyName,
+                  letter.letterNumber,
+                  letter.deadlineDays,
+                  `Surat No: ${letter.letterNumber} | Batas Waktu Tindak Lanjut: ${letter.deadlineDays} Hari Kerja.`
+                ),
+                sentAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+                status: 'Berhasil Terkirim',
+                triggerType: 'Manual Admin'
+              });
+            }}
+          />
+        )}
+
+        {activeTab === 'notifications' && (
+          <EmailNotificationCenter
+            emailLogs={emailLogs}
+            permits={permits}
+            lkpmRecords={lkpmRecords}
+            companies={companies}
+            currentUserRole={currentUser.role}
+            onSendEmail={handleSendEmail}
+            onRunBatchScheduler={handleRunBatchScheduler}
+          />
+        )}
+
+        {activeTab === 'tracking' && (
+          <RealTimeTracker
+            companies={companies}
+            permits={permits}
+            lkpmRecords={lkpmRecords}
+            events={complianceEvents}
+            onForceRefresh={handleForceRefreshAudit}
+            isSyncing={isSyncing}
+            onNavigateTab={setActiveTab}
+          />
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-slate-200 py-6 mt-12 text-slate-500 text-xs no-print">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center space-x-2">
+            <span className="font-bold text-slate-800">KepatuhanPlus</span>
+            <span>•</span>
+            <span>Sistem Pengawasan Perizinan &amp; LKPM Berbasis OSS-RBA</span>
+          </div>
+          <div className="flex items-center space-x-4 text-slate-400">
+            <span>Sesuai PP No. 5/2021 &amp; Perka BKPM No. 5/2021</span>
+            <span>•</span>
+            <span>Notifikasi Email: andri.cimb@gmail.com</span>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
