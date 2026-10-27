@@ -35,6 +35,12 @@ interface UserManagementViewProps {
   onDeleteUser: (userId: string) => { success: boolean; message: string };
   onResetUsersToDefault: () => void;
   onSwitchUser?: (user: UserAccount) => void;
+  onClearAllData?: () => void;
+  onClearPermitsOnly?: () => void;
+  onClearLKPMOnly?: () => void;
+  permitsCount?: number;
+  lkpmCount?: number;
+  companiesCount?: number;
 }
 
 export const UserManagementView: React.FC<UserManagementViewProps> = ({
@@ -45,10 +51,17 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   onDeleteUser,
   onResetUsersToDefault,
   onSwitchUser,
+  onClearAllData,
+  onClearPermitsOnly,
+  onClearLKPMOnly,
+  permitsCount = 0,
+  lkpmCount = 0,
+  companiesCount = 0,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showResetDataModal, setShowResetDataModal] = useState<false | 'all' | 'permits' | 'lkpm'>(false);
   const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserAccount | null>(null);
   const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
@@ -236,7 +249,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center space-x-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => {
                 if (window.confirm('Kembalikan daftar akun ke bawaan sistem (Super Admin, Koordinator, Petugas, Monitor)?')) {
@@ -248,7 +261,16 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               title="Reset ke akun default"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset Default</span>
+              <span>Reset Default User</span>
+            </button>
+
+            <button
+              onClick={() => setShowResetDataModal('all')}
+              className="px-3.5 py-2 rounded-xl bg-rose-600/90 hover:bg-rose-600 text-white text-xs font-bold border border-rose-400/40 shadow-md shadow-rose-950/30 transition flex items-center space-x-1.5"
+              title="Reset seluruh data All LKPM & Perizinan"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Reset Data LKPM &amp; Perizinan</span>
             </button>
 
             <button
@@ -309,6 +331,146 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           </div>
           <div className="w-11 h-11 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
             <ShieldCheck className="w-5 h-5" />
+          </div>
+        </div>
+      </div>
+
+      {/* Super Admin Data Management & Reset Panel (All LKPM & Perizinan) */}
+      <div className="bg-white rounded-2xl p-5 border border-rose-200/90 shadow-md space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="flex items-center space-x-2.5">
+            <span className="p-2 bg-rose-100 text-rose-700 rounded-xl">
+              <Trash2 className="w-5 h-5" />
+            </span>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h3 className="text-sm font-bold text-slate-900">
+                  Pusat Manajemen &amp; Reset Data Sistem (All LKPM &amp; Perizinan)
+                </h3>
+                <span className="text-[10px] bg-rose-600 text-white font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Super Admin Only
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Fitur khusus Super Admin untuk mengosongkan arsip data operasional (LKPM, Perizinan OSS, atau seluruh entitas sekaligus) saat pengujian atau pembersihan data berkala.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2 shrink-0">
+            <span className="text-[11px] font-mono text-slate-600 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+              Total Data Operasional: <strong className="text-slate-900 font-bold">{permitsCount + lkpmCount}</strong> arsip
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          {/* Option 1: Full Reset (All LKPM & Perizinan) */}
+          <div className="p-4 rounded-xl bg-gradient-to-b from-rose-50/70 to-white border border-rose-200 flex flex-col justify-between space-y-3 hover:border-rose-400 transition shadow-xs">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200">
+                  Full Reset (Semua Data)
+                </span>
+                <span className="text-xs font-mono font-bold text-rose-700">
+                  {permitsCount + lkpmCount} item
+                </span>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-slate-900">Reset All LKPM &amp; Perizinan</h4>
+                <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                  Mengosongkan semua data Perizinan OSS ({permitsCount}), Laporan LKPM ({lkpmCount}), Profil Perusahaan ({companiesCount}), serta arsip surat teguran dan log notifikasi email.
+                </p>
+              </div>
+
+              <div className="bg-white/80 p-2 rounded-lg border border-rose-100 text-[10px] text-slate-600 space-y-0.5 font-mono">
+                <div className="flex justify-between"><span>Perizinan OSS:</span> <strong>{permitsCount} arsip</strong></div>
+                <div className="flex justify-between"><span>Pelaporan LKPM:</span> <strong>{lkpmCount} arsip</strong></div>
+                <div className="flex justify-between"><span>Perusahaan:</span> <strong>{companiesCount} entitas</strong></div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowResetDataModal('all')}
+              className="w-full py-2 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm shadow-rose-600/30 transition flex items-center justify-center space-x-1.5 cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Reset All LKPM &amp; Perizinan</span>
+            </button>
+          </div>
+
+          {/* Option 2: Reset Perizinan Saja */}
+          <div className="p-4 rounded-xl bg-gradient-to-b from-amber-50/70 to-white border border-amber-200 flex flex-col justify-between space-y-3 hover:border-amber-400 transition shadow-xs">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                  Khusus Dokumen Izin
+                </span>
+                <span className="text-xs font-mono font-bold text-amber-700">
+                  {permitsCount} arsip
+                </span>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-slate-900">Reset Khusus Data Perizinan</h4>
+                <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                  Mengosongkan seluruh arsip dokumen izin operasional OSS, masa berlaku, dan tindak lanjut perizinan tanpa menghapus data LKPM.
+                </p>
+              </div>
+
+              <div className="bg-white/80 p-2 rounded-lg border border-amber-100 text-[10px] text-slate-600 space-y-0.5 font-mono">
+                <div className="flex justify-between"><span>Arsip Izin OSS:</span> <strong>{permitsCount} arsip</strong></div>
+                <div className="flex justify-between"><span>Status LKPM:</span> <span className="text-emerald-600 font-semibold">Tetap Tersimpan</span></div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowResetDataModal('permits')}
+              disabled={permitsCount === 0}
+              className="w-full py-2 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-sm shadow-amber-600/30 transition flex items-center justify-center space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Reset Data Perizinan ({permitsCount})</span>
+            </button>
+          </div>
+
+          {/* Option 3: Reset LKPM Saja */}
+          <div className="p-4 rounded-xl bg-gradient-to-b from-sky-50/70 to-white border border-sky-200 flex flex-col justify-between space-y-3 hover:border-sky-400 transition shadow-xs">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-200">
+                  Khusus Pelaporan LKPM
+                </span>
+                <span className="text-xs font-mono font-bold text-sky-700">
+                  {lkpmCount} arsip
+                </span>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-slate-900">Reset Khusus Data LKPM</h4>
+                <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                  Mengosongkan seluruh catatan pelaporan LKPM triwulan/semester, batas waktu pelaporan, dan tindak lanjut LKPM tanpa mengubah data perizinan OSS.
+                </p>
+              </div>
+
+              <div className="bg-white/80 p-2 rounded-lg border border-sky-100 text-[10px] text-slate-600 space-y-0.5 font-mono">
+                <div className="flex justify-between"><span>Arsip LKPM:</span> <strong>{lkpmCount} arsip</strong></div>
+                <div className="flex justify-between"><span>Status Perizinan:</span> <span className="text-emerald-600 font-semibold">Tetap Tersimpan</span></div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowResetDataModal('lkpm')}
+              disabled={lkpmCount === 0}
+              className="w-full py-2 px-3 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold shadow-sm shadow-sky-600/30 transition flex items-center justify-center space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Reset Data LKPM ({lkpmCount})</span>
+            </button>
           </div>
         </div>
       </div>
@@ -1005,6 +1167,113 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Ya, Hapus Pengguna</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Konfirmasi Reset Data Sistem (All LKPM & Perizinan) */}
+      {showResetDataModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 my-8">
+            <div className="flex items-center space-x-3 text-rose-600 mb-4">
+              <span className="p-3 bg-rose-100 rounded-xl">
+                <AlertTriangle className="w-6 h-6 text-rose-600" />
+              </span>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  {showResetDataModal === 'all' && 'Konfirmasi Reset All LKPM & Perizinan'}
+                  {showResetDataModal === 'permits' && 'Konfirmasi Reset Data Perizinan'}
+                  {showResetDataModal === 'lkpm' && 'Konfirmasi Reset Data LKPM'}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium">Otoritas Khusus Super Administrator</p>
+              </div>
+            </div>
+
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-xs text-rose-900 space-y-2.5 mb-4">
+              <p className="font-semibold text-rose-950">
+                {showResetDataModal === 'all' && 'Anda akan mengosongkan seluruh data operasional sistem Jaksel Building Asistance:'}
+                {showResetDataModal === 'permits' && 'Anda akan mengosongkan seluruh data Perizinan OSS dari sistem:'}
+                {showResetDataModal === 'lkpm' && 'Anda akan mengosongkan seluruh data pelaporan LKPM dari sistem:'}
+              </p>
+
+              <div className="bg-white/80 p-3 rounded-lg border border-rose-200 space-y-1 font-mono text-[11px]">
+                {showResetDataModal === 'all' && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">• Data Perizinan OSS:</span>
+                      <strong className="text-rose-700">{permitsCount} dokumen</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">• Data Pelaporan LKPM:</span>
+                      <strong className="text-rose-700">{lkpmCount} laporan</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">• Entitas Perusahaan:</span>
+                      <strong className="text-rose-700">{companiesCount} perusahaan</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">• Log Surat &amp; Notifikasi:</span>
+                      <strong className="text-rose-700">Ikut dibersihkan</strong>
+                    </div>
+                  </>
+                )}
+                {showResetDataModal === 'permits' && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">• Total Dokumen Izin OSS:</span>
+                      <strong className="text-amber-700">{permitsCount} dokumen</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">• Data LKPM:</span>
+                      <span className="text-emerald-600 font-semibold">Tetap aman (tidak dihapus)</span>
+                    </div>
+                  </>
+                )}
+                {showResetDataModal === 'lkpm' && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">• Total Catatan LKPM:</span>
+                      <strong className="text-sky-700">{lkpmCount} laporan</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">• Data Perizinan OSS:</span>
+                      <span className="text-emerald-600 font-semibold">Tetap aman (tidak dihapus)</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <p className="text-[11px] text-rose-700 leading-snug">
+                Peringatan: Penghapusan data bersifat permanen dari local database sistem. Data baru dapat diunggah kembali oleh Petugas melalui menu Upload Data.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowResetDataModal(false)}
+                className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-50 transition"
+              >
+                Batalkan
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (showResetDataModal === 'all' && onClearAllData) {
+                    onClearAllData();
+                  } else if (showResetDataModal === 'permits' && onClearPermitsOnly) {
+                    onClearPermitsOnly();
+                  } else if (showResetDataModal === 'lkpm' && onClearLKPMOnly) {
+                    onClearLKPMOnly();
+                  }
+                  setShowResetDataModal(false);
+                }}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow-md shadow-rose-600/30 transition flex items-center space-x-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Ya, Kosongkan Sekarang</span>
               </button>
             </div>
           </div>

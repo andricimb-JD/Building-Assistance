@@ -358,21 +358,54 @@ export default function App() {
 
   // Wipe / Empty all Data (Perizinan OSS & LKPM)
   const handleClearAllData = () => {
-    if (confirm('Apakah Anda yakin ingin mengosongkan seluruh data Perizinan (OSS) dan LKPM?')) {
-      setCompanies([]);
-      setPermits([]);
-      setLkpmRecords([]);
-      setWarningLetters([]);
-      setEmailLogs([]);
-      setComplianceEvents([]);
-      localStorage.setItem('kp_companies', JSON.stringify([]));
-      localStorage.setItem('kp_permits', JSON.stringify([]));
-      localStorage.setItem('kp_lkpm', JSON.stringify([]));
-      localStorage.setItem('kp_letters', JSON.stringify([]));
-      localStorage.setItem('kp_emails', JSON.stringify([]));
-      localStorage.setItem('kp_events', JSON.stringify([]));
-      showToast('Seluruh data Perizinan dan LKPM berhasil dikosongkan!', 'info');
-    }
+    setCompanies([]);
+    setPermits([]);
+    setLkpmRecords([]);
+    setWarningLetters([]);
+    setEmailLogs([]);
+    setComplianceEvents([]);
+    localStorage.setItem('kp_companies', JSON.stringify([]));
+    localStorage.setItem('kp_permits', JSON.stringify([]));
+    localStorage.setItem('kp_lkpm', JSON.stringify([]));
+    localStorage.setItem('kp_letters', JSON.stringify([]));
+    localStorage.setItem('kp_emails', JSON.stringify([]));
+    localStorage.setItem('kp_events', JSON.stringify([]));
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Data Perizinan & LKPM Direset',
+      `Super Admin ${currentUser.name} telah mereset dan mengosongkan seluruh data Perizinan OSS dan LKPM.`,
+      'warning',
+      'Seluruh Entitas'
+    );
+    showToast('Seluruh data Perizinan (OSS) dan LKPM berhasil dikosongkan!', 'info');
+  };
+
+  // Clear Permits data only
+  const handleClearPermitsOnly = () => {
+    setPermits([]);
+    localStorage.setItem('kp_permits', JSON.stringify([]));
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Data Perizinan Direset',
+      `Super Admin ${currentUser.name} telah mengosongkan seluruh data dokumen Perizinan OSS.`,
+      'warning',
+      'Perizinan OSS'
+    );
+    showToast('Seluruh data Perizinan (OSS) berhasil dikosongkan!', 'info');
+  };
+
+  // Clear LKPM data only
+  const handleClearLKPMOnly = () => {
+    setLkpmRecords([]);
+    localStorage.setItem('kp_lkpm', JSON.stringify([]));
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Data LKPM Direset',
+      `Super Admin ${currentUser.name} telah mengosongkan seluruh data pelaporan LKPM.`,
+      'warning',
+      'Pelaporan LKPM'
+    );
+    showToast('Seluruh data Pelaporan LKPM berhasil dikosongkan!', 'info');
   };
 
   // Warning Letter Save
@@ -835,6 +868,12 @@ export default function App() {
             onDeleteUser={handleDeleteUser}
             onResetUsersToDefault={handleResetUsersToDefault}
             onSwitchUser={handleSwitchUser}
+            onClearAllData={handleClearAllData}
+            onClearPermitsOnly={handleClearPermitsOnly}
+            onClearLKPMOnly={handleClearLKPMOnly}
+            permitsCount={permits.length}
+            lkpmCount={lkpmRecords.length}
+            companiesCount={companies.length}
           />
         )}
 
