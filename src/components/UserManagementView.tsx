@@ -36,6 +36,7 @@ interface UserManagementViewProps {
   onResetUsersToDefault: () => void;
   onSwitchUser?: (user: UserAccount) => void;
   onClearAllData?: () => void;
+  onClearCompaniesOnly?: () => void;
   onClearPermitsOnly?: () => void;
   onClearLKPMOnly?: () => void;
   permitsCount?: number;
@@ -52,6 +53,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   onResetUsersToDefault,
   onSwitchUser,
   onClearAllData,
+  onClearCompaniesOnly,
   onClearPermitsOnly,
   onClearLKPMOnly,
   permitsCount = 0,
@@ -61,7 +63,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showResetDataModal, setShowResetDataModal] = useState<false | 'all' | 'permits' | 'lkpm'>(false);
+  const [showResetDataModal, setShowResetDataModal] = useState<false | 'all' | 'companies' | 'permits' | 'lkpm'>(false);
   const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserAccount | null>(null);
   const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
@@ -265,12 +267,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             </button>
 
             <button
-              onClick={() => setShowResetDataModal('all')}
+              onClick={() => setShowResetDataModal('companies')}
               className="px-3.5 py-2 rounded-xl bg-rose-600/90 hover:bg-rose-600 text-white text-xs font-bold border border-rose-400/40 shadow-md shadow-rose-950/30 transition flex items-center space-x-1.5"
-              title="Reset seluruh data All LKPM & Perizinan"
+              title="Reset seluruh data entitas perusahaan"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Reset Data LKPM &amp; Perizinan</span>
+              <span>Reset Perusahaan</span>
             </button>
 
             <button
@@ -335,7 +337,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         </div>
       </div>
 
-      {/* Super Admin Data Management & Reset Panel (All LKPM & Perizinan) */}
+      {/* Super Admin Data Management & Reset Panel (Perusahaan, Perizinan, & LKPM) */}
       <div className="bg-white rounded-2xl p-5 border border-rose-200/90 shadow-md space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div className="flex items-center space-x-2.5">
@@ -345,59 +347,59 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             <div>
               <div className="flex items-center space-x-2">
                 <h3 className="text-sm font-bold text-slate-900">
-                  Pusat Manajemen &amp; Reset Data Sistem (All LKPM &amp; Perizinan)
+                  Pusat Manajemen &amp; Reset Data Sistem (Perusahaan, Perizinan, &amp; LKPM)
                 </h3>
                 <span className="text-[10px] bg-rose-600 text-white font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
                   Super Admin Only
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Fitur khusus Super Admin untuk mengosongkan arsip data operasional (LKPM, Perizinan OSS, atau seluruh entitas sekaligus) saat pengujian atau pembersihan data berkala.
+                Fitur khusus Super Admin untuk mengosongkan data profil perusahaan, arsip perizinan OSS, atau catatan pelaporan LKPM saat pengujian atau pembersihan data.
               </p>
             </div>
           </div>
 
           <div className="flex items-center space-x-2 shrink-0">
             <span className="text-[11px] font-mono text-slate-600 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-              Total Data Operasional: <strong className="text-slate-900 font-bold">{permitsCount + lkpmCount}</strong> arsip
+              Total Entitas: <strong className="text-slate-900 font-bold">{companiesCount}</strong> Perusahaan
             </span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-          {/* Option 1: Full Reset (All LKPM & Perizinan) */}
+          {/* Option 1: Reset Data Perusahaan */}
           <div className="p-4 rounded-xl bg-gradient-to-b from-rose-50/70 to-white border border-rose-200 flex flex-col justify-between space-y-3 hover:border-rose-400 transition shadow-xs">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200">
-                  Full Reset (Semua Data)
+                  Data Perusahaan
                 </span>
                 <span className="text-xs font-mono font-bold text-rose-700">
-                  {permitsCount + lkpmCount} item
+                  {companiesCount} entitas
                 </span>
               </div>
 
               <div>
-                <h4 className="text-xs font-bold text-slate-900">Reset All LKPM &amp; Perizinan</h4>
+                <h4 className="text-xs font-bold text-slate-900">Reset Data Perusahaan</h4>
                 <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                  Mengosongkan semua data Perizinan OSS ({permitsCount}), Laporan LKPM ({lkpmCount}), Profil Perusahaan ({companiesCount}), serta arsip surat teguran dan log notifikasi email.
+                  Mengosongkan seluruh data profil perusahaan terdaftar (NIB, nama perusahaan, NPWP, kontak PIC) tanpa mengubah data dokumen izin atau LKPM.
                 </p>
               </div>
 
               <div className="bg-white/80 p-2 rounded-lg border border-rose-100 text-[10px] text-slate-600 space-y-0.5 font-mono">
-                <div className="flex justify-between"><span>Perizinan OSS:</span> <strong>{permitsCount} arsip</strong></div>
-                <div className="flex justify-between"><span>Pelaporan LKPM:</span> <strong>{lkpmCount} arsip</strong></div>
-                <div className="flex justify-between"><span>Perusahaan:</span> <strong>{companiesCount} entitas</strong></div>
+                <div className="flex justify-between"><span>Entitas Perusahaan:</span> <strong>{companiesCount} entitas</strong></div>
+                <div className="flex justify-between"><span>Status Izin &amp; LKPM:</span> <span className="text-emerald-600 font-semibold">Tetap Tersimpan</span></div>
               </div>
             </div>
 
             <button
               type="button"
-              onClick={() => setShowResetDataModal('all')}
-              className="w-full py-2 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm shadow-rose-600/30 transition flex items-center justify-center space-x-1.5 cursor-pointer"
+              onClick={() => setShowResetDataModal('companies')}
+              disabled={companiesCount === 0}
+              className="w-full py-2 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm shadow-rose-600/30 transition flex items-center justify-center space-x-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Reset All LKPM &amp; Perizinan</span>
+              <span>Reset Perusahaan ({companiesCount})</span>
             </button>
           </div>
 
@@ -1183,7 +1185,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               </span>
               <div>
                 <h3 className="text-base font-bold text-slate-900">
-                  {showResetDataModal === 'all' && 'Konfirmasi Reset All LKPM & Perizinan'}
+                  {showResetDataModal === 'companies' && 'Konfirmasi Reset Data Perusahaan'}
+                  {showResetDataModal === 'all' && 'Konfirmasi Reset Seluruh Data Sistem'}
                   {showResetDataModal === 'permits' && 'Konfirmasi Reset Data Perizinan'}
                   {showResetDataModal === 'lkpm' && 'Konfirmasi Reset Data LKPM'}
                 </h3>
@@ -1193,12 +1196,29 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
             <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-xs text-rose-900 space-y-2.5 mb-4">
               <p className="font-semibold text-rose-950">
+                {showResetDataModal === 'companies' && 'Anda akan mengosongkan seluruh entitas profil perusahaan dari sistem Jaksel Building Asistance:'}
                 {showResetDataModal === 'all' && 'Anda akan mengosongkan seluruh data operasional sistem Jaksel Building Asistance:'}
                 {showResetDataModal === 'permits' && 'Anda akan mengosongkan seluruh data Perizinan OSS dari sistem:'}
                 {showResetDataModal === 'lkpm' && 'Anda akan mengosongkan seluruh data pelaporan LKPM dari sistem:'}
               </p>
 
               <div className="bg-white/80 p-3 rounded-lg border border-rose-200 space-y-1 font-mono text-[11px]">
+                {showResetDataModal === 'companies' && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">• Total Entitas Perusahaan:</span>
+                      <strong className="text-rose-700">{companiesCount} perusahaan</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">• Data Perizinan OSS:</span>
+                      <span className="text-emerald-600 font-semibold">Tetap aman (tidak dihapus)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">• Data Pelaporan LKPM:</span>
+                      <span className="text-emerald-600 font-semibold">Tetap aman (tidak dihapus)</span>
+                    </div>
+                  </>
+                )}
                 {showResetDataModal === 'all' && (
                   <>
                     <div className="flex justify-between">
@@ -1261,7 +1281,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  if (showResetDataModal === 'all' && onClearAllData) {
+                  if (showResetDataModal === 'companies' && onClearCompaniesOnly) {
+                    onClearCompaniesOnly();
+                  } else if (showResetDataModal === 'all' && onClearAllData) {
                     onClearAllData();
                   } else if (showResetDataModal === 'permits' && onClearPermitsOnly) {
                     onClearPermitsOnly();

@@ -408,6 +408,20 @@ export default function App() {
     showToast('Seluruh data Pelaporan LKPM berhasil dikosongkan!', 'info');
   };
 
+  // Clear Companies data only
+  const handleClearCompaniesOnly = () => {
+    setCompanies([]);
+    localStorage.setItem('kp_companies', JSON.stringify([]));
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Data Perusahaan Direset',
+      `Super Admin ${currentUser.name} telah mengosongkan seluruh data master profil perusahaan.`,
+      'warning',
+      'Data Perusahaan'
+    );
+    showToast('Seluruh data Perusahaan berhasil dikosongkan!', 'info');
+  };
+
   // Warning Letter Save
   const handleSaveLetter = (letter: WarningLetter) => {
     setWarningLetters((prev) => [letter, ...prev]);
@@ -869,6 +883,7 @@ export default function App() {
             onResetUsersToDefault={handleResetUsersToDefault}
             onSwitchUser={handleSwitchUser}
             onClearAllData={handleClearAllData}
+            onClearCompaniesOnly={handleClearCompaniesOnly}
             onClearPermitsOnly={handleClearPermitsOnly}
             onClearLKPMOnly={handleClearLKPMOnly}
             permitsCount={permits.length}
