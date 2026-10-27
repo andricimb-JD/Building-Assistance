@@ -1,6 +1,6 @@
 export type CompanyScale = 'Besar' | 'Menengah' | 'Kecil' | 'Mikro';
 
-export type UserRole = 'petugas' | 'koordinator' | 'monitor';
+export type UserRole = 'petugas' | 'koordinator' | 'monitor' | 'superadmin';
 
 export interface UserAccount {
   id: string;

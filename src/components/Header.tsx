@@ -109,10 +109,16 @@ export const Header: React.FC<HeaderProps> = ({
   // Monitor: ONLY dashboard pemantauan
   const allTabs = [
     { 
+      id: 'users', 
+      label: 'Manajemen Pengguna', 
+      icon: Users, 
+      roles: ['superadmin'] 
+    },
+    { 
       id: 'dashboard', 
       label: currentUser.role === 'monitor' ? 'Dashboard Pemantauan' : 'Dashboard Eksekutif', 
       icon: Activity, 
-      roles: ['koordinator', 'monitor'] 
+      roles: ['koordinator', 'monitor', 'superadmin'] 
     },
     { 
       id: 'compare', 
@@ -120,31 +126,31 @@ export const Header: React.FC<HeaderProps> = ({
       icon: GitCompare,
       badge: dualViolationsCount > 0 ? dualViolationsCount : undefined,
       badgeColor: 'bg-rose-600',
-      roles: ['koordinator']
+      roles: ['koordinator', 'superadmin']
     },
     { 
       id: 'upload', 
       label: 'Upload Data Perizinan & LKPM', 
       icon: UploadCloud, 
-      roles: ['petugas'] 
+      roles: ['petugas', 'superadmin'] 
     },
     { 
       id: 'letters', 
       label: 'Surat Teguran Resmi', 
       icon: FileText, 
-      roles: ['koordinator'] 
+      roles: ['koordinator', 'superadmin'] 
     },
     { 
       id: 'notifications', 
       label: 'Notifikasi Email', 
       icon: Mail, 
-      roles: ['koordinator'] 
+      roles: ['koordinator', 'superadmin'] 
     },
     { 
       id: 'tracking', 
       label: 'Pelacakan Real-Time', 
       icon: Bell, 
-      roles: ['koordinator'] 
+      roles: ['koordinator', 'superadmin'] 
     }
   ];
 
@@ -163,8 +169,8 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-sky-400 via-indigo-200 to-white bg-clip-text text-transparent">
-                  Building Assistance <span className="text-emerald-400">Jaksel</span>
+                <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 via-sky-200 to-white bg-clip-text text-transparent">
+                  <span className="text-emerald-400">Jaksel</span> Building Asistance
                 </span>
                 <span className="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   OSS-RBA & BKPM
@@ -223,86 +229,132 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
 
-            {/* Interactive User Account Switcher Dropdown */}
-            <div className="relative pl-2 border-l border-slate-800">
-              <button
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center space-x-2 p-1.5 rounded-xl hover:bg-slate-800 transition focus:outline-none ring-1 ring-slate-700/60"
-                title="Ganti Peran Akun Pengguna (Petugas / Koordinator / Monitor)"
-              >
-                <div className={`w-8 h-8 rounded-full ${currentUser.avatarColor} text-white flex items-center justify-center font-bold text-xs ring-2 ring-white/20 shadow`}>
-                  {currentUser.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                </div>
-                <div className="hidden sm:block text-left pr-1">
-                  <div className="flex items-center space-x-1">
-                    <p className="text-xs font-bold text-slate-100 leading-tight truncate max-w-[120px]">{currentUser.name}</p>
-                    <ChevronDown className="w-3 h-3 text-slate-400" />
+              {/* Interactive User Account Dropdown (Quick Switch for Super Admin ONLY) */}
+              <div className="relative pl-2 border-l border-slate-800">
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="flex items-center space-x-2 p-1.5 rounded-xl hover:bg-slate-800 transition focus:outline-none ring-1 ring-slate-700/60"
+                  title={currentUser.role === 'superadmin' ? 'Beralih Akun (Khusus Super Admin)' : 'Profil Pengguna Aktif'}
+                >
+                  <div className={`w-8 h-8 rounded-full ${currentUser.avatarColor} text-white flex items-center justify-center font-bold text-xs ring-2 ring-white/20 shadow`}>
+                    {currentUser.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                   </div>
-                  <span className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-extrabold ${
-                    currentUser.role === 'petugas' 
-                      ? 'bg-amber-500/20 text-amber-300' 
-                      : currentUser.role === 'koordinator'
-                      ? 'bg-sky-500/20 text-sky-300'
-                      : 'bg-emerald-500/20 text-emerald-300'
-                  }`}>
-                    {currentUser.roleTitle}
-                  </span>
-                </div>
-              </button>
-
-              {/* Dropdown Menu */}
-              {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-2 z-50 animate-slide-in">
-                  <div className="px-3 py-2 border-b border-slate-800">
-                    <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-300">
-                      <Users className="w-4 h-4 text-sky-400" />
-                      <span>Ganti Peran Akun Pengguna:</span>
+                  <div className="hidden sm:block text-left pr-1">
+                    <div className="flex items-center space-x-1">
+                      <p className="text-xs font-bold text-slate-100 leading-tight truncate max-w-[120px]">{currentUser.name}</p>
+                      <ChevronDown className="w-3 h-3 text-slate-400" />
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Pilih salah satu peran untuk melihat batas wewenang sistem.
-                    </p>
+                    <span className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-extrabold ${
+                      currentUser.role === 'superadmin'
+                        ? 'bg-purple-500/20 text-purple-300'
+                        : currentUser.role === 'petugas' 
+                        ? 'bg-amber-500/20 text-amber-300' 
+                        : currentUser.role === 'koordinator'
+                        ? 'bg-sky-500/20 text-sky-300'
+                        : 'bg-emerald-500/20 text-emerald-300'
+                    }`}>
+                      {currentUser.roleTitle}
+                    </span>
                   </div>
+                </button>
 
-                  <div className="divide-y divide-slate-800/60 py-1">
-                    {users.map((user) => {
-                      const isSelected = user.id === currentUser.id;
-                      return (
-                        <button
-                          key={user.id}
-                          onClick={() => {
-                            onSwitchUser(user);
-                            setIsUserMenuOpen(false);
-                          }}
-                          className={`w-full text-left p-2.5 rounded-xl flex items-start space-x-3 transition ${
-                            isSelected ? 'bg-slate-800/90 ring-1 ring-sky-500/50' : 'hover:bg-slate-800/50'
-                          }`}
-                        >
-                          <div className={`w-8 h-8 rounded-full ${user.avatarColor} text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5`}>
-                            {user.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                {/* Dropdown Menu */}
+                {isUserMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-80 bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-2 z-50 animate-slide-in">
+                    {currentUser.role === 'superadmin' ? (
+                      /* Quick User Switcher: Strictly restricted to Super Admin */
+                      <>
+                        <div className="px-3 py-2 border-b border-slate-800">
+                          <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-300">
+                            <Users className="w-4 h-4 text-purple-400" />
+                            <span>Beralih Peran Pengguna (Super Admin):</span>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-slate-100">{user.name}</span>
-                              {isSelected && <Check className="w-4 h-4 text-emerald-400 shrink-0" />}
-                            </div>
-                            <span className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-bold ${
-                              user.role === 'petugas'
-                                ? 'text-amber-400 bg-amber-950/60'
-                                : user.role === 'koordinator'
-                                ? 'text-sky-400 bg-sky-950/60'
-                                : 'text-emerald-400 bg-emerald-950/60'
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            Hak khusus Super Admin untuk menguji peran &amp; wewenang akun lain.
+                          </p>
+                        </div>
+
+                        <div className="divide-y divide-slate-800/60 py-1 max-h-64 overflow-y-auto">
+                          {users.map((user) => {
+                            const isSelected = user.id === currentUser.id;
+                            return (
+                              <button
+                                key={user.id}
+                                onClick={() => {
+                                  onSwitchUser(user);
+                                  setIsUserMenuOpen(false);
+                                }}
+                                className={`w-full text-left p-2.5 rounded-xl flex items-start space-x-3 transition ${
+                                  isSelected ? 'bg-slate-800/90 ring-1 ring-sky-500/50' : 'hover:bg-slate-800/50'
+                                }`}
+                              >
+                                <div className={`w-8 h-8 rounded-full ${user.avatarColor} text-white flex items-center justify-center font-bold text-xs shrink-0 mt-0.5`}>
+                                  {user.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-slate-100">{user.name}</span>
+                                    {isSelected && <Check className="w-4 h-4 text-emerald-400 shrink-0" />}
+                                  </div>
+                                  <span className={`inline-block px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                                    user.role === 'superadmin'
+                                      ? 'text-purple-400 bg-purple-950/60'
+                                      : user.role === 'petugas'
+                                      ? 'text-amber-400 bg-amber-950/60'
+                                      : user.role === 'koordinator'
+                                      ? 'text-sky-400 bg-sky-950/60'
+                                      : 'text-emerald-400 bg-emerald-950/60'
+                                  }`}>
+                                    {user.roleTitle}
+                                  </span>
+                                  <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                                    {user.description}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    ) : (
+                      /* Non-Superadmin: NO quick user switching! Only profile information & logout */
+                      <div className="p-3 space-y-3">
+                        <div className="flex items-center space-x-3 pb-3 border-b border-slate-800">
+                          <div className={`w-10 h-10 rounded-xl ${currentUser.avatarColor} text-white flex items-center justify-center font-bold text-sm shadow`}>
+                            {currentUser.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-slate-100 truncate">{currentUser.name}</p>
+                            <p className="text-[11px] text-slate-400 font-mono truncate">{currentUser.email}</p>
+                            <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                              currentUser.role === 'petugas'
+                                ? 'bg-amber-500/20 text-amber-300'
+                                : currentUser.role === 'koordinator'
+                                ? 'bg-sky-500/20 text-sky-300'
+                                : 'bg-emerald-500/20 text-emerald-300'
                             }`}>
-                              {user.roleTitle}
+                              {currentUser.roleTitle}
                             </span>
-                            <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-                              {user.description}
-                            </p>
                           </div>
-                        </button>
-                      );
-                    })}
-                    {/* Clear All Data Option */}
-                    {onClearAllData && (
+                        </div>
+
+                        <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800 space-y-1 text-slate-300 text-[11px]">
+                          <div className="font-semibold text-slate-200">Batasan Wewenang Peran:</div>
+                          <p className="text-slate-400 leading-snug">{currentUser.description}</p>
+                          <p className="text-[10px] text-emerald-400 pt-1 flex items-center space-x-1">
+                            <ShieldCheck className="w-3 h-3" />
+                            <span>Sesi Terautentikasi Sandi Resmi</span>
+                          </p>
+                        </div>
+
+                        <div className="text-[10px] text-slate-500 italic bg-slate-950/30 p-2 rounded-lg border border-slate-800/60">
+                          Untuk berganti akun, silakan keluar (logout) dan lakukan autentikasi dengan akun yang dituju.
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Clear All Data Option (Super Admin only) */}
+                    {currentUser.role === 'superadmin' && onClearAllData && (
                       <div className="pt-2 mt-1 border-t border-slate-800">
                         <button
                           onClick={() => {
@@ -331,9 +383,8 @@ export const Header: React.FC<HeaderProps> = ({
                       </button>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
             {/* Quick Logout Icon Button */}
             <button

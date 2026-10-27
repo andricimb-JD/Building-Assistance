@@ -10,6 +10,7 @@ import { RealTimeTracker } from './components/RealTimeTracker';
 import { NIBComparisonView } from './components/NIBComparisonView';
 import { UnifiedUploadView } from './components/UnifiedUploadView';
 import { LoginView } from './components/LoginView';
+import { UserManagementView } from './components/UserManagementView';
 
 import { 
   Permit, 
@@ -44,6 +45,24 @@ export default function App() {
     return localStorage.getItem('kp_isAuthenticated') === 'true';
   });
 
+  // Users List with Persistence
+  const [users, setUsers] = useState<UserAccount[]>(() => {
+    const saved = localStorage.getItem('kp_users_list');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {
+        // fallback
+      }
+    }
+    return DEFAULT_USERS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('kp_users_list', JSON.stringify(users));
+  }, [users]);
+
   // Active User Account (RBAC)
   const [currentUser, setCurrentUser] = useState<UserAccount>(() => {
     const saved = localStorage.getItem('kp_currentUser');
@@ -54,11 +73,12 @@ export default function App() {
         return DEFAULT_USERS[0];
       }
     }
-    return DEFAULT_USERS[0]; // Default Koordinator
+    return DEFAULT_USERS[0]; // Default Super Admin
   });
 
   // Navigation
   const [activeTab, setActiveTab] = useState<string>(() => {
+    if (currentUser.role === 'superadmin') return 'users';
     if (currentUser.role === 'petugas') return 'upload';
     if (currentUser.role === 'monitor') return 'dashboard';
     return 'dashboard';
@@ -552,7 +572,9 @@ export default function App() {
     localStorage.setItem('kp_isAuthenticated', 'true');
     localStorage.setItem('kp_currentUser', JSON.stringify(user));
 
-    if (user.role === 'petugas') {
+    if (user.role === 'superadmin') {
+      setActiveTab('users');
+    } else if (user.role === 'petugas') {
       setActiveTab('upload');
     } else if (user.role === 'monitor') {
       setActiveTab('dashboard');
@@ -584,31 +606,132 @@ export default function App() {
     showToast('Anda telah keluar dari sistem. Silakan masuk kembali.', 'info');
   };
 
-  // Switch User Account
+  // Switch User Account (Super Admin only capability)
   const handleSwitchUser = (selectedUser: UserAccount) => {
+    if (currentUser.role !== 'superadmin') {
+      showToast('Akses ditolak: Hanya Super Admin yang berwenang beralih akun.', 'danger');
+      return;
+    }
+
     setCurrentUser(selectedUser);
     showToast(`Beralih akun ke: ${selectedUser.name} (${selectedUser.roleTitle})`, 'info');
-    if (selectedUser.role === 'petugas') {
+    if (selectedUser.role === 'superadmin') {
+      setActiveTab('users');
+    } else if (selectedUser.role === 'petugas') {
       setActiveTab('upload');
     } else if (selectedUser.role === 'monitor') {
       setActiveTab('dashboard');
     } else if (selectedUser.role === 'koordinator') {
-      if (activeTab === 'upload' || activeTab === 'permits' || activeTab === 'lkpm') {
+      if (activeTab === 'upload' || activeTab === 'permits' || activeTab === 'lkpm' || activeTab === 'users') {
         setActiveTab('dashboard');
       }
     }
   };
 
+  // User Management Handlers (Super Admin)
+  const handleAddUser = (newUser: Omit<UserAccount, 'id'>): { success: boolean; message: string } => {
+    const isUsernameTaken = users.some(u => u.username.toLowerCase() === newUser.username.toLowerCase());
+    if (isUsernameTaken) {
+      return { success: false, message: `Username "@${newUser.username}" sudah digunakan akun lain.` };
+    }
+
+    const isEmailTaken = users.some(u => u.email.toLowerCase() === newUser.email.toLowerCase());
+    if (isEmailTaken) {
+      return { success: false, message: `Email "${newUser.email}" sudah terdaftar pada akun lain.` };
+    }
+
+    const createdUser: UserAccount = {
+      ...newUser,
+      id: `user-${Date.now()}`
+    };
+
+    setUsers(prev => [...prev, createdUser]);
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Akun Pengguna Baru Terdaftar',
+      `Super Admin mendaftarkan pengguna baru: ${createdUser.name} (@${createdUser.username}) dengan peran ${createdUser.roleTitle}.`,
+      'success',
+      currentUser.name
+    );
+
+    return { success: true, message: `Akun "${createdUser.name}" (@${createdUser.username}) berhasil ditambahkan ke sistem!` };
+  };
+
+  const handleUpdateUser = (updatedUser: UserAccount): { success: boolean; message: string } => {
+    const isUsernameTaken = users.some(u => u.id !== updatedUser.id && u.username.toLowerCase() === updatedUser.username.toLowerCase());
+    if (isUsernameTaken) {
+      return { success: false, message: `Username "@${updatedUser.username}" sudah digunakan akun lain.` };
+    }
+
+    setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+    
+    if (updatedUser.id === currentUser.id) {
+      setCurrentUser(updatedUser);
+    }
+
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Data Pengguna Diperbarui',
+      `Kredensial dan data pengguna ${updatedUser.name} (@${updatedUser.username}) berhasil diperbarui oleh Super Admin.`,
+      'info',
+      currentUser.name
+    );
+
+    return { success: true, message: `Data akun "${updatedUser.name}" berhasil diperbarui.` };
+  };
+
+  const handleDeleteUser = (userId: string): { success: boolean; message: string } => {
+    if (userId === currentUser.id) {
+      return { success: false, message: 'Anda tidak dapat menghapus akun Anda sendiri saat sedang aktif.' };
+    }
+
+    const targetUser = users.find(u => u.id === userId);
+    if (!targetUser) {
+      return { success: false, message: 'Pengguna tidak ditemukan.' };
+    }
+
+    if (targetUser.role === 'superadmin') {
+      const superAdminCount = users.filter(u => u.role === 'superadmin').length;
+      if (superAdminCount <= 1) {
+        return { success: false, message: 'Tidak dapat menghapus Super Admin terakhir pada sistem.' };
+      }
+    }
+
+    setUsers(prev => prev.filter(u => u.id !== userId));
+
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Pengguna Dihapus dari Sistem',
+      `Super Admin menghapus akun ${targetUser.name} (@${targetUser.username}) dengan peran ${targetUser.roleTitle}.`,
+      'warning',
+      currentUser.name
+    );
+
+    return { success: true, message: `Akun "${targetUser.name}" (@${targetUser.username}) telah berhasil dihapus.` };
+  };
+
+  const handleResetUsersToDefault = () => {
+    setUsers(DEFAULT_USERS);
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Daftar Pengguna Direset',
+      'Super Admin mengembalikan seluruh akun ke konfigurasi bawaan sistem.',
+      'info',
+      currentUser.name
+    );
+  };
+
   // Enforce strict role-based tab boundaries
   // - Monitor: strictly dashboard
   // - Petugas: strictly upload
-  // - Koordinator: dashboard, compare, letters, notifications, tracking (no permits, lkpm, or upload)
+  // - Koordinator: dashboard, compare, letters, notifications, tracking (no permits, lkpm, upload, or users)
+  // - Superadmin: users, dashboard, compare, upload, letters, notifications, tracking
   useEffect(() => {
     if (currentUser.role === 'monitor' && activeTab !== 'dashboard') {
       setActiveTab('dashboard');
     } else if (currentUser.role === 'petugas' && activeTab !== 'upload') {
       setActiveTab('upload');
-    } else if (currentUser.role === 'koordinator' && (activeTab === 'permits' || activeTab === 'lkpm' || activeTab === 'upload')) {
+    } else if (currentUser.role === 'koordinator' && (activeTab === 'permits' || activeTab === 'lkpm' || activeTab === 'upload' || activeTab === 'users')) {
       setActiveTab('dashboard');
     }
   }, [currentUser.role, activeTab]);
@@ -667,7 +790,7 @@ export default function App() {
             <span className="text-xs font-semibold">{globalToast.message}</span>
           </div>
         )}
-        <LoginView onLoginSuccess={handleLoginSuccess} />
+        <LoginView onLoginSuccess={handleLoginSuccess} users={users} />
       </>
     );
   }
@@ -690,7 +813,7 @@ export default function App() {
         lkpmRecords={lkpmRecords}
         companies={companies}
         currentUser={currentUser}
-        users={DEFAULT_USERS}
+        users={users}
         onSwitchUser={handleSwitchUser}
         onLogout={handleLogout}
         onClearAllData={handleClearAllData}
@@ -703,6 +826,18 @@ export default function App() {
 
       {/* Main Body Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {activeTab === 'users' && (
+          <UserManagementView
+            users={users}
+            currentUser={currentUser}
+            onAddUser={handleAddUser}
+            onUpdateUser={handleUpdateUser}
+            onDeleteUser={handleDeleteUser}
+            onResetUsersToDefault={handleResetUsersToDefault}
+            onSwitchUser={handleSwitchUser}
+          />
+        )}
+
         {activeTab === 'dashboard' && (
           <DashboardView
             permits={permits}

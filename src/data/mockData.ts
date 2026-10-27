@@ -9,6 +9,17 @@ export const getRelativeDate = (daysOffset: number): string => {
 
 export const DEFAULT_USERS: UserAccount[] = [
   {
+    id: 'user-superadmin',
+    name: 'Super Administrator',
+    username: 'superadmin',
+    password: 'superadmin123',
+    email: 'superadmin@kepatuhanplus.id',
+    role: 'superadmin',
+    roleTitle: 'Super Admin',
+    description: 'Kewenangan Tertinggi: Menambah & Menghapus User Petugas, Koordinator, dan Monitoring serta Mengatur Hak Akses.',
+    avatarColor: 'bg-purple-600'
+  },
+  {
     id: 'user-koordinator',
     name: 'Andri Wicaksono',
     username: 'koordinator',

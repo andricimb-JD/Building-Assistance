@@ -7,21 +7,17 @@ import {
   EyeOff, 
   AlertCircle, 
   ArrowRight, 
-  CheckCircle2, 
-  KeyRound, 
-  Building2, 
-  Activity, 
-  UploadCloud,
-  FileText
+  KeyRound
 } from 'lucide-react';
 import { UserAccount } from '../types';
 import { DEFAULT_USERS } from '../data/mockData';
 
 interface LoginViewProps {
   onLoginSuccess: (user: UserAccount) => void;
+  users?: UserAccount[];
 }
 
-export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
+export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess, users = DEFAULT_USERS }) => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -29,7 +25,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
-  // Authenticate user against DEFAULT_USERS
+  const activeUsers = users && users.length > 0 ? users : DEFAULT_USERS;
+
+  // Authenticate user against active users list with required username & password
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -45,7 +43,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
     setIsLoading(true);
 
     setTimeout(() => {
-      const matchedUser = DEFAULT_USERS.find(
+      const matchedUser = activeUsers.find(
         (u) =>
           (u.username.toLowerCase() === cleanIdentifier || u.email.toLowerCase() === cleanIdentifier) &&
           u.password === cleanPassword
@@ -56,21 +54,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         onLoginSuccess(matchedUser);
       } else {
         setIsLoading(false);
-        setErrorMessage('Username atau kata sandi tidak cocok. Silakan gunakan kartu akun resmi di bawah.');
+        setErrorMessage('Username atau kata sandi tidak cocok. Periksa kembali username dan kata sandi Anda atau hubungi Super Administrator.');
       }
     }, 400);
-  };
-
-  // One-click quick fill & instant login for convenient testing
-  const handleQuickLogin = (user: UserAccount) => {
-    setIdentifier(user.username);
-    setPassword(user.password);
-    setErrorMessage(null);
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      onLoginSuccess(user);
-    }, 300);
   };
 
   return (
@@ -87,8 +73,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           </div>
         </div>
 
-        <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-sky-400 via-indigo-200 to-white bg-clip-text text-transparent">
-          Building Assistance <span className="text-emerald-400">Jaksel</span>
+        <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 via-sky-200 to-white bg-clip-text text-transparent">
+          <span className="text-emerald-400">Jaksel</span> Building Asistance
         </h2>
         <p className="mt-1 text-xs text-slate-400 font-medium">
           Sistem Pengingat Masa Berlaku Perizinan &amp; Kepatuhan LKPM Terpadu OSS-RBA
@@ -100,8 +86,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         </div>
       </div>
 
-      <div className="mt-7 sm:mx-auto sm:w-full sm:max-w-xl relative z-10 space-y-6">
-        {/* Login Card */}
+      <div className="mt-7 sm:mx-auto sm:w-full sm:max-w-md relative z-10 space-y-6">
+        {/* Secure Credential Login Card */}
         <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Error Message Alert */}
@@ -126,7 +112,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="Contoh: koordinator, petugas, monitor atau email"
+                  placeholder="Masukkan username atau email terdaftar"
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition"
                 />
               </div>
@@ -178,7 +164,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
               </label>
 
               <span className="text-[11px] text-sky-400 hover:underline cursor-pointer">
-                Lupa Password?
+                Bantuan Akses
               </span>
             </div>
 
@@ -203,86 +189,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           </form>
         </div>
 
-        {/* Quick Accounts Credential Helper Card */}
-        <div className="bg-slate-900/60 backdrop-blur border border-slate-800/80 rounded-2xl p-5 space-y-3.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-xs font-bold text-slate-300">
-              <KeyRound className="w-4 h-4 text-emerald-400" />
-              <span>Daftar Akun Resmi &amp; Kredensial Pengguna:</span>
-            </div>
-            <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-800 px-2 py-0.5 rounded">
-              Pilih Cepat
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-400 leading-relaxed">
-            Klik tombol <strong>"Gunakan Akun Ini"</strong> untuk langsung mengisi username &amp; password dan menguji sistem sesuai batas wewenang peran masing-masing:
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-            {DEFAULT_USERS.map((user) => {
-              const isKoordinator = user.role === 'koordinator';
-              const isPetugas = user.role === 'petugas';
-              const isMonitor = user.role === 'monitor';
-
-              return (
-                <div
-                  key={user.id}
-                  className={`p-3.5 rounded-xl border transition flex flex-col justify-between ${
-                    isKoordinator
-                      ? 'bg-sky-950/30 border-sky-500/30 hover:border-sky-500/60'
-                      : isPetugas
-                      ? 'bg-amber-950/30 border-amber-500/30 hover:border-amber-500/60'
-                      : 'bg-emerald-950/30 border-emerald-500/30 hover:border-emerald-500/60'
-                  }`}
-                >
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className={`text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
-                        isKoordinator
-                          ? 'bg-sky-500/20 text-sky-300'
-                          : isPetugas
-                          ? 'bg-amber-500/20 text-amber-300'
-                          : 'bg-emerald-500/20 text-emerald-300'
-                      }`}>
-                        {user.roleTitle}
-                      </span>
-                    </div>
-
-                    <h4 className="text-xs font-bold text-white truncate">{user.name}</h4>
-
-                    <div className="text-[11px] font-mono space-y-0.5 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
-                      <p className="text-slate-400">User: <strong className="text-slate-200">{user.username}</strong></p>
-                      <p className="text-slate-400">Pass: <strong className="text-slate-200">{user.password}</strong></p>
-                    </div>
-
-                    <p className="text-[10px] text-slate-400 leading-snug line-clamp-2">
-                      {isKoordinator && 'Dashboard, Komparasi NIB, Surat Teguran, Notifikasi, Tracking.'}
-                      {isPetugas && 'Khusus Upload Dokumen Perizinan & LKPM Saja.'}
-                      {isMonitor && 'Khusus Dashboard Pemantauan Persentase Tindak Lanjut.'}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin(user)}
-                    className={`mt-3 w-full py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center space-x-1 ${
-                      isKoordinator
-                        ? 'bg-sky-600 hover:bg-sky-500 text-white'
-                        : isPetugas
-                        ? 'bg-amber-600 hover:bg-amber-500 text-white'
-                        : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                    }`}
-                  >
-                    <span>Gunakan Akun Ini</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Footnote */}
+        {/* Security Footnote */}
         <p className="text-center text-[11px] text-slate-500">
           Sistem Kepatuhan OSS-RBA &amp; BKPM • Hak Akses Dilindungi Kebijakan Keamanan Sistem
         </p>
