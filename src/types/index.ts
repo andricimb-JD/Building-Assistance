@@ -1,6 +1,6 @@
 export type CompanyScale = 'Besar' | 'Menengah' | 'Kecil' | 'Mikro';
 
-export type UserRole = 'petugas' | 'koordinator' | 'monitor' | 'superadmin';
+export type UserRole = 'petugas' | 'koordinator' | 'monitor' | 'superadmin' | 'pelaku_usaha';
 
 export interface UserAccount {
   id: string;
@@ -12,6 +12,27 @@ export interface UserAccount {
   roleTitle: string;
   description: string;
   avatarColor: string;
+  // Optional for Pelaku Usaha (Pengelola Gedung)
+  companyName?: string;
+  buildingName?: string;
+  nib?: string;
+  buildingType?: string;
+  address?: string;
+  phone?: string;
+}
+
+export interface BuildingSelfCheckResult {
+  buildingName: string;
+  buildingType: string;
+  district: string;
+  address: string;
+  ownedPermits: string[];
+  uploadedFiles: Record<string, string>; // permitKey -> fileName
+  checkedRequirements: Record<string, string[]>; // permitKey -> array of satisfied question indices or text
+  completedAt: string;
+  consultationRequested?: boolean;
+  consultationDate?: string;
+  consultationNotes?: string;
 }
 
 export interface Company {

@@ -115,6 +115,12 @@ export const Header: React.FC<HeaderProps> = ({
       roles: ['superadmin'] 
     },
     { 
+      id: 'building_control', 
+      label: 'Kendali Kondisi Gedung', 
+      icon: Building2, 
+      roles: ['pelaku_usaha', 'superadmin'] 
+    },
+    { 
       id: 'dashboard', 
       label: currentUser.role === 'monitor' ? 'Dashboard Pemantauan' : 'Dashboard Eksekutif', 
       icon: Activity, 
@@ -229,6 +235,13 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
 
+            {currentUser.role === 'pelaku_usaha' && (
+              <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-sky-950/70 text-sky-300 border border-sky-500/40 text-xs font-semibold shadow-inner">
+                <Building2 className="w-3.5 h-3.5 text-sky-400" />
+                <span className="hidden sm:inline">Kendali Kondisi Gedung Mandiri</span>
+              </div>
+            )}
+
               {/* Interactive User Account Dropdown (Quick Switch for Super Admin ONLY) */}
               <div className="relative pl-2 border-l border-slate-800">
                 <button
@@ -251,6 +264,8 @@ export const Header: React.FC<HeaderProps> = ({
                         ? 'bg-amber-500/20 text-amber-300' 
                         : currentUser.role === 'koordinator'
                         ? 'bg-sky-500/20 text-sky-300'
+                        : currentUser.role === 'pelaku_usaha'
+                        ? 'bg-blue-500/20 text-blue-300'
                         : 'bg-emerald-500/20 text-emerald-300'
                     }`}>
                       {currentUser.roleTitle}
@@ -303,6 +318,8 @@ export const Header: React.FC<HeaderProps> = ({
                                       ? 'text-amber-400 bg-amber-950/60'
                                       : user.role === 'koordinator'
                                       ? 'text-sky-400 bg-sky-950/60'
+                                      : user.role === 'pelaku_usaha'
+                                      ? 'text-blue-400 bg-blue-950/60'
                                       : 'text-emerald-400 bg-emerald-950/60'
                                   }`}>
                                     {user.roleTitle}
@@ -331,6 +348,8 @@ export const Header: React.FC<HeaderProps> = ({
                                 ? 'bg-amber-500/20 text-amber-300'
                                 : currentUser.role === 'koordinator'
                                 ? 'bg-sky-500/20 text-sky-300'
+                                : currentUser.role === 'pelaku_usaha'
+                                ? 'bg-blue-500/20 text-blue-300'
                                 : 'bg-emerald-500/20 text-emerald-300'
                             }`}>
                               {currentUser.roleTitle}

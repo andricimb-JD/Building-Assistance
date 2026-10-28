@@ -23,7 +23,8 @@ import {
   Activity,
   FileText,
   ArrowRight,
-  LogIn
+  LogIn,
+  Building2
 } from 'lucide-react';
 import { UserAccount, UserRole } from '../types';
 
@@ -121,6 +122,13 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           avatarColor: 'bg-emerald-600',
           desc: 'Kewenangan: Khusus Memantau Hasil & Persentase Tindak Lanjut Real-Time (Read-Only).'
         };
+      case 'pelaku_usaha':
+        return {
+          title: 'Pelaku Usaha',
+          badgeClass: 'bg-blue-100 text-blue-800 border-blue-300',
+          avatarColor: 'bg-blue-600',
+          desc: 'Pengelola Bangunan Gedung: Kendali Kondisi Gedung, Self-Check Kelaikan, & Pendampingan PTSP.'
+        };
     }
   };
 
@@ -212,6 +220,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const koordinatorCount = users.filter(u => u.role === 'koordinator').length;
   const petugasCount = users.filter(u => u.role === 'petugas').length;
   const monitorCount = users.filter(u => u.role === 'monitor').length;
+  const pelakuUsahaCount = users.filter(u => u.role === 'pelaku_usaha').length;
 
   return (
     <div className="space-y-6">
@@ -507,6 +516,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             const isKoordinator = user.role === 'koordinator';
             const isPetugas = user.role === 'petugas';
             const isMonitor = user.role === 'monitor';
+            const isPelakuUsaha = user.role === 'pelaku_usaha';
             const isCurrentActive = user.id === currentUser.id;
             const isPasswordVisible = revealedPasswords[`card-${user.id}`] || false;
 
@@ -522,6 +532,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                     ? 'bg-sky-50/40 border-sky-200 hover:border-sky-400'
                     : isPetugas
                     ? 'bg-amber-50/40 border-amber-200 hover:border-amber-400'
+                    : isPelakuUsaha
+                    ? 'bg-blue-50/40 border-blue-200 hover:border-blue-400'
                     : 'bg-emerald-50/40 border-emerald-200 hover:border-emerald-400'
                 }`}
               >
@@ -534,6 +546,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                         ? 'bg-sky-100 text-sky-800 border-sky-300'
                         : isPetugas
                         ? 'bg-amber-100 text-amber-800 border-amber-300'
+                        : isPelakuUsaha
+                        ? 'bg-blue-100 text-blue-800 border-blue-300'
                         : 'bg-emerald-100 text-emerald-800 border-emerald-300'
                     }`}>
                       {user.roleTitle}
@@ -550,6 +564,11 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   <div>
                     <h4 className="text-xs font-bold text-slate-900 truncate">{user.name}</h4>
                     <p className="text-[10px] text-slate-400 font-mono truncate">{user.email}</p>
+                    {user.buildingName && (
+                      <span className="inline-block mt-1 text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200 truncate max-w-full">
+                        🏢 {user.buildingName}
+                      </span>
+                    )}
                   </div>
 
                   <div className="text-[11px] font-mono space-y-1 bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
@@ -602,6 +621,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                           ? 'bg-sky-600 hover:bg-sky-700 text-white'
                           : isPetugas
                           ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                          : isPelakuUsaha
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
                           : 'bg-emerald-600 hover:bg-emerald-700 text-white'
                       }`}
                     >
@@ -632,6 +653,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 sm:pb-0">
           {[
             { id: 'all', label: `Semua (${users.length})` },
+            { id: 'pelaku_usaha', label: `Pelaku Usaha (${pelakuUsahaCount})` },
             { id: 'superadmin', label: `Super Admin (${superAdminCount})` },
             { id: 'koordinator', label: `Koordinator (${koordinatorCount})` },
             { id: 'petugas', label: `Petugas (${petugasCount})` },
@@ -726,6 +748,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                           {user.role === 'koordinator' && <Activity className="w-3 h-3 mr-1" />}
                           {user.role === 'petugas' && <UploadCloud className="w-3 h-3 mr-1" />}
                           {user.role === 'monitor' && <ShieldCheck className="w-3 h-3 mr-1" />}
+                          {user.role === 'pelaku_usaha' && <Building2 className="w-3 h-3 mr-1" />}
                           <span>{roleInfo.title}</span>
                         </span>
                       </td>
@@ -940,6 +963,13 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     {
+                      role: 'pelaku_usaha' as UserRole,
+                      title: 'Pelaku Usaha',
+                      desc: 'Kendali Kondisi Gedung & Self-Check PTSP',
+                      border: 'hover:border-blue-400',
+                      active: 'bg-blue-50 border-blue-500 text-blue-900'
+                    },
+                    {
                       role: 'petugas' as UserRole,
                       title: 'Petugas',
                       desc: 'Hanya Upload Perizinan & LKPM',
@@ -1097,7 +1127,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value as UserRole })}
                   className="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 bg-white"
                 >
-                  <option value="petugas">User Petugas (Khusus Upload Data Perizinan & LKPM)</option>
+                  <option value="pelaku_usaha">User Pelaku Usaha (Kendali Kondisi Gedung &amp; Self-Check PTSP)</option>
+                  <option value="petugas">User Petugas (Khusus Upload Data Perizinan &amp; LKPM)</option>
                   <option value="koordinator">User Koordinator (Dashboard, Komparasi NIB, Surat Teguran, Email)</option>
                   <option value="monitor">User Monitoring (Khusus Pemantauan Real-Time)</option>
                   <option value="superadmin">Super Admin (Otoritas Penuh Pengguna)</option>

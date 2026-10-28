@@ -11,6 +11,7 @@ import { NIBComparisonView } from './components/NIBComparisonView';
 import { UnifiedUploadView } from './components/UnifiedUploadView';
 import { LoginView } from './components/LoginView';
 import { UserManagementView } from './components/UserManagementView';
+import { BuildingControlView } from './components/BuildingControlView';
 
 import { 
   Permit, 
@@ -79,6 +80,7 @@ export default function App() {
   // Navigation
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (currentUser.role === 'superadmin') return 'users';
+    if (currentUser.role === 'pelaku_usaha') return 'building_control';
     if (currentUser.role === 'petugas') return 'upload';
     if (currentUser.role === 'monitor') return 'dashboard';
     return 'dashboard';
@@ -621,6 +623,8 @@ export default function App() {
 
     if (user.role === 'superadmin') {
       setActiveTab('users');
+    } else if (user.role === 'pelaku_usaha') {
+      setActiveTab('building_control');
     } else if (user.role === 'petugas') {
       setActiveTab('upload');
     } else if (user.role === 'monitor') {
@@ -664,12 +668,14 @@ export default function App() {
     showToast(`Beralih akun ke: ${selectedUser.name} (${selectedUser.roleTitle})`, 'info');
     if (selectedUser.role === 'superadmin') {
       setActiveTab('users');
+    } else if (selectedUser.role === 'pelaku_usaha') {
+      setActiveTab('building_control');
     } else if (selectedUser.role === 'petugas') {
       setActiveTab('upload');
     } else if (selectedUser.role === 'monitor') {
       setActiveTab('dashboard');
     } else if (selectedUser.role === 'koordinator') {
-      if (activeTab === 'upload' || activeTab === 'permits' || activeTab === 'lkpm' || activeTab === 'users') {
+      if (activeTab === 'upload' || activeTab === 'permits' || activeTab === 'lkpm' || activeTab === 'users' || activeTab === 'building_control') {
         setActiveTab('dashboard');
       }
     }
@@ -768,17 +774,79 @@ export default function App() {
     );
   };
 
+  // Self-registration for Pelaku Usaha
+  const handleRegisterUser = (newUserData: Omit<UserAccount, 'id'>): { success: boolean; message: string; user?: UserAccount } => {
+    const isUsernameTaken = users.some(u => u.username.toLowerCase() === newUserData.username.toLowerCase());
+    if (isUsernameTaken) {
+      return { success: false, message: `Username "@${newUserData.username}" sudah digunakan. Silakan gunakan username lain.` };
+    }
+
+    const isEmailTaken = users.some(u => u.email.toLowerCase() === newUserData.email.toLowerCase());
+    if (isEmailTaken) {
+      return { success: false, message: `Email "${newUserData.email}" sudah terdaftar dalam sistem.` };
+    }
+
+    const createdUser: UserAccount = {
+      ...newUserData,
+      id: `user-usaha-${Date.now()}`
+    };
+
+    setUsers(prev => [...prev, createdUser]);
+
+    // Automatically sync company database if building info provided
+    if (createdUser.companyName) {
+      setCompanies(prev => {
+        const exists = prev.some(c => c.name.toLowerCase() === createdUser.companyName?.toLowerCase());
+        if (exists) return prev;
+        return [
+          ...prev,
+          {
+            id: `comp-${Date.now()}`,
+            name: createdUser.companyName || 'Perusahaan',
+            nib: createdUser.nib || '0000000000000',
+            npwp: '-',
+            address: createdUser.address || 'Jakarta Selatan',
+            city: 'Jakarta Selatan',
+            province: 'DKI Jakarta',
+            picName: createdUser.name,
+            picEmail: createdUser.email,
+            picPhone: createdUser.phone || '-',
+            scale: 'Besar',
+            sector: createdUser.buildingType || 'Gedung Komersial'
+          }
+        ];
+      });
+    }
+
+    addComplianceEvent(
+      'DATA_IMPORTED',
+      'Pendaftaran Akun Pelaku Usaha Berhasil',
+      `Akun pelaku usaha gedung ${createdUser.buildingName || createdUser.name} (${createdUser.companyName || '-'}) terdaftar di Jaksel Building Assistance.`,
+      'success',
+      createdUser.name
+    );
+
+    return { 
+      success: true, 
+      message: `Pendaftaran berhasil! Akun untuk "${createdUser.buildingName || createdUser.name}" berhasil dibuat.`,
+      user: createdUser 
+    };
+  };
+
   // Enforce strict role-based tab boundaries
+  // - Pelaku Usaha: strictly building_control
   // - Monitor: strictly dashboard
   // - Petugas: strictly upload
-  // - Koordinator: dashboard, compare, letters, notifications, tracking (no permits, lkpm, upload, or users)
-  // - Superadmin: users, dashboard, compare, upload, letters, notifications, tracking
+  // - Koordinator: dashboard, compare, letters, notifications, tracking (no permits, lkpm, upload, users, or building_control)
+  // - Superadmin: users, building_control, dashboard, compare, upload, letters, notifications, tracking
   useEffect(() => {
-    if (currentUser.role === 'monitor' && activeTab !== 'dashboard') {
+    if (currentUser.role === 'pelaku_usaha' && activeTab !== 'building_control') {
+      setActiveTab('building_control');
+    } else if (currentUser.role === 'monitor' && activeTab !== 'dashboard') {
       setActiveTab('dashboard');
     } else if (currentUser.role === 'petugas' && activeTab !== 'upload') {
       setActiveTab('upload');
-    } else if (currentUser.role === 'koordinator' && (activeTab === 'permits' || activeTab === 'lkpm' || activeTab === 'upload' || activeTab === 'users')) {
+    } else if (currentUser.role === 'koordinator' && (activeTab === 'permits' || activeTab === 'lkpm' || activeTab === 'upload' || activeTab === 'users' || activeTab === 'building_control')) {
       setActiveTab('dashboard');
     }
   }, [currentUser.role, activeTab]);
@@ -837,7 +905,11 @@ export default function App() {
             <span className="text-xs font-semibold">{globalToast.message}</span>
           </div>
         )}
-        <LoginView onLoginSuccess={handleLoginSuccess} users={users} />
+        <LoginView 
+          onLoginSuccess={handleLoginSuccess} 
+          onRegisterUser={handleRegisterUser} 
+          users={users} 
+        />
       </>
     );
   }
@@ -889,6 +961,14 @@ export default function App() {
             permitsCount={permits.length}
             lkpmCount={lkpmRecords.length}
             companiesCount={companies.length}
+          />
+        )}
+
+        {activeTab === 'building_control' && (
+          <BuildingControlView
+            currentUser={currentUser}
+            onLogout={handleLogout}
+            onNavigateSuperAdmin={currentUser.role === 'superadmin' ? () => setActiveTab('users') : undefined}
           />
         )}
 

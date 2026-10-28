@@ -51,6 +51,23 @@ export const DEFAULT_USERS: UserAccount[] = [
     roleTitle: 'User Monitor',
     description: 'Kewenangan: Hanya Memantau Hasil & Berapa Persen (%) yang Sudah Ditindaklanjuti secara Real-Time.',
     avatarColor: 'bg-emerald-600'
+  },
+  {
+    id: 'user-usaha',
+    name: 'PT Graha Surya Mandiri',
+    username: 'usaha',
+    password: 'usaha123',
+    email: 'pengelola@grahasurya.co.id',
+    role: 'pelaku_usaha',
+    roleTitle: 'Pelaku Usaha',
+    description: 'Pemilik/Pengelola Gedung: Kendali Kondisi Gedung, Self-Check Kelaikan, Identifikasi Izin, & Pendampingan PTSP.',
+    avatarColor: 'bg-blue-600',
+    companyName: 'PT Graha Surya Mandiri',
+    buildingName: 'Gedung Surya Tower',
+    nib: '0123456789012',
+    buildingType: 'Perkantoran',
+    address: 'Jl. H.R. Rasuna Said Kav. C-22, Jakarta Selatan',
+    phone: '0812-9876-5432'
   }
 ];
 
