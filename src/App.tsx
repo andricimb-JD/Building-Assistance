@@ -21,7 +21,9 @@ import {
   Company, 
   ComplianceLogEvent,
   UserAccount,
-  FollowUpStatus
+  FollowUpStatus,
+  ConsultationApplication,
+  ConsultationStatus
 } from './types';
 
 import { 
@@ -31,7 +33,8 @@ import {
   INITIAL_WARNING_LETTERS, 
   INITIAL_EMAIL_LOGS, 
   INITIAL_COMPLIANCE_EVENTS,
-  DEFAULT_USERS
+  DEFAULT_USERS,
+  INITIAL_CONSULTATIONS
 } from './data/mockData';
 
 import { 
@@ -180,6 +183,103 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('kp_events', JSON.stringify(complianceEvents));
   }, [complianceEvents]);
+
+  // Permohonan Pendampingan Pelaku Usaha (Consultation Applications) State
+  const [consultations, setConsultations] = useState<ConsultationApplication[]>(() => {
+    const saved = localStorage.getItem('kp_consultations');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return INITIAL_CONSULTATIONS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('kp_consultations', JSON.stringify(consultations));
+  }, [consultations]);
+
+  // Submit consultation application from Pelaku Usaha
+  const handleSubmitConsultation = (newApp: ConsultationApplication) => {
+    setConsultations((prev) => [newApp, ...prev]);
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Permohonan Pendampingan Baru Masuk',
+      `Permohonan pendampingan gedung ${newApp.buildingName} (${newApp.companyName}) dengan No. Reg ${newApp.refNumber} diteruskan ke data User Monitoring untuk diverifikasi.`,
+      'info',
+      newApp.buildingName
+    );
+    showToast(`Permohonan ${newApp.refNumber} berhasil diajukan dan masuk ke data User Monitoring untuk diverifikasi!`, 'success');
+  };
+
+  // Verify / update consultation status from User Monitoring or Admin
+  const handleUpdateConsultationStatus = (id: string, newStatus: ConsultationStatus, officerNotes?: string) => {
+    setConsultations((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              status: newStatus,
+              officerNotes: officerNotes !== undefined ? officerNotes : c.officerNotes,
+              verifiedBy: currentUser.name,
+              verifiedAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
+            }
+          : c
+      )
+    );
+    const target = consultations.find((c) => c.id === id);
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Verifikasi Permohonan Pendampingan Selesai',
+      `Permohonan ${target?.refNumber || id} (${target?.buildingName || 'Gedung'}) diverifikasi oleh ${currentUser.name} dengan status "${newStatus}".`,
+      newStatus === 'Diverifikasi & Dijadwalkan' || newStatus === 'Selesai' ? 'success' : 'warning',
+      target?.buildingName || 'User Monitoring'
+    );
+    showToast(`Status permohonan ${target?.refNumber || ''} berhasil diperbarui: "${newStatus}"!`, 'success');
+  };
+
+  // Reschedule consultation date & method (specifically for Koordinator role & admins)
+  const handleRescheduleConsultation = (
+    id: string,
+    newDate: string,
+    newMethod?: string,
+    rescheduleReason?: string
+  ) => {
+    const target = consultations.find((c) => c.id === id);
+    if (!target) return;
+    const oldDate = target.consultationDate;
+
+    setConsultations((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              previousDate: oldDate,
+              consultationDate: newDate,
+              method: newMethod || c.method,
+              rescheduledBy: currentUser.name,
+              rescheduledAt: new Date().toISOString().replace('T', ' ').slice(0, 16),
+              rescheduleReason: rescheduleReason || 'Penyesuaian jadwal oleh Koordinator PTSP',
+              status: c.status === 'Menunggu Verifikasi' ? 'Diverifikasi & Dijadwalkan' : c.status,
+              officerNotes: rescheduleReason 
+                ? `[Jadwal Diubah oleh Koordinator ${currentUser.name}]: ${rescheduleReason}` 
+                : c.officerNotes
+            }
+          : c
+      )
+    );
+
+    addComplianceEvent(
+      'STATUS_UPDATED',
+      'Jadwal Pendampingan Diubah Koordinator',
+      `Jadwal pendampingan gedung ${target.buildingName} (No. Reg: ${target.refNumber}) diubah oleh Koordinator ${currentUser.name} dari ${oldDate} menjadi ${newDate}.`,
+      'info',
+      target.buildingName
+    );
+
+    showToast(`Jadwal pendampingan untuk ${target.buildingName} berhasil diubah ke ${newDate} oleh Koordinator!`, 'success');
+  };
 
   const showToast = (message: string, type: 'success' | 'info' | 'danger' = 'success') => {
     setGlobalToast({ message, type });
@@ -967,6 +1067,8 @@ export default function App() {
         {activeTab === 'building_control' && (
           <BuildingControlView
             currentUser={currentUser}
+            consultations={consultations}
+            onSubmitConsultation={handleSubmitConsultation}
             onLogout={handleLogout}
             onNavigateSuperAdmin={currentUser.role === 'superadmin' ? () => setActiveTab('users') : undefined}
           />
@@ -979,6 +1081,9 @@ export default function App() {
             warningLetters={warningLetters}
             companies={companies}
             currentUser={currentUser}
+            consultations={consultations}
+            onUpdateConsultationStatus={handleUpdateConsultationStatus}
+            onRescheduleConsultation={handleRescheduleConsultation}
             onNavigateTab={setActiveTab}
             onOpenLetterWithItem={handleOpenLetterWithItem}
             onSendDirectEmail={handleDirectSendEmail}

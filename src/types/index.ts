@@ -21,6 +21,45 @@ export interface UserAccount {
   phone?: string;
 }
 
+export type ConsultationStatus = 
+  | 'Menunggu Verifikasi' 
+  | 'Diverifikasi & Dijadwalkan' 
+  | 'Sedang Didampingi' 
+  | 'Selesai' 
+  | 'Perlu Perbaikan';
+
+export interface ConsultationApplication {
+  id: string;
+  refNumber: string;
+  submittedAt: string;
+  userId?: string;
+  userName?: string;
+  buildingName: string;
+  buildingType: string;
+  companyName: string;
+  nib: string;
+  address: string;
+  district: string;
+  picName: string;
+  picPhone: string;
+  picEmail?: string;
+  consultationDate: string;
+  method: string;
+  topic: string;
+  notes: string;
+  ownedPermits: string[];
+  uploadedFiles: Record<string, string>;
+  preparedRequirementsCount?: number;
+  status: ConsultationStatus;
+  verifiedBy?: string;
+  verifiedAt?: string;
+  officerNotes?: string;
+  previousDate?: string;
+  rescheduledBy?: string;
+  rescheduledAt?: string;
+  rescheduleReason?: string;
+}
+
 export interface BuildingSelfCheckResult {
   buildingName: string;
   buildingType: string;

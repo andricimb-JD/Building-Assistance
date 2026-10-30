@@ -38,17 +38,21 @@ import {
   Layers,
   Cpu
 } from 'lucide-react';
-import { UserAccount } from '../types';
+import { UserAccount, ConsultationApplication } from '../types';
 import { Building4DViewer } from './Building4DViewer';
 
 interface BuildingControlViewProps {
   currentUser: UserAccount;
+  consultations?: ConsultationApplication[];
+  onSubmitConsultation?: (application: ConsultationApplication) => void;
   onLogout?: () => void;
   onNavigateSuperAdmin?: () => void;
 }
 
 export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
   currentUser,
+  consultations,
+  onSubmitConsultation,
   onLogout,
   onNavigateSuperAdmin
 }) => {
@@ -211,19 +215,58 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
   const ownedPermitsCount = Object.keys(permitStates).filter(k => permitStates[k].selected).length;
   const uploadedFilesCount = Object.keys(permitStates).filter(k => permitStates[k].fileName !== null).length;
 
+  const buildingName = currentUser.buildingName || currentUser.companyName || 'Gedung Surya Tower';
+  const districtName = 'Jakarta Selatan';
+
+  // Find current user's consultation if already submitted
+  const myConsultation = consultations?.find(
+    (c) => c.userId === currentUser.id || c.nib === currentUser.nib || c.buildingName === buildingName
+  );
+
   // Handle consultation form submit
   const handleConsultationSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const ref = `PTSP-JS-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newApp: ConsultationApplication = {
+      id: `cs-${Date.now()}`,
+      refNumber: ref,
+      submittedAt: new Date().toISOString().replace('T', ' ').slice(0, 16),
+      userId: currentUser.id,
+      userName: currentUser.name,
+      buildingName: buildingName,
+      buildingType: selectedBuilding,
+      companyName: currentUser.companyName || buildingName,
+      nib: currentUser.nib || '0123456789012',
+      address: currentUser.address || 'Jakarta Selatan',
+      district: districtName,
+      picName: consultationForm.picName || currentUser.name,
+      picPhone: consultationForm.phone || currentUser.phone || '-',
+      picEmail: currentUser.email,
+      consultationDate: consultationForm.date,
+      method: consultationForm.method,
+      topic: consultationForm.topic,
+      notes: consultationForm.notes,
+      ownedPermits: Object.keys(permitStates).filter(k => permitStates[k].selected),
+      uploadedFiles: Object.keys(permitStates).reduce((acc, k) => {
+        if (permitStates[k].fileName) acc[k] = permitStates[k].fileName!;
+        return acc;
+      }, {} as Record<string, string>),
+      preparedRequirementsCount: Object.values(preparedRequirements).reduce(
+        (acc, curr) => acc + Object.values(curr).filter(Boolean).length, 0
+      ),
+      status: 'Menunggu Verifikasi'
+    };
+
+    if (onSubmitConsultation) {
+      onSubmitConsultation(newApp);
+    }
+
     setConsultationSuccessData({
       refNumber: ref,
       date: consultationForm.date,
       method: consultationForm.method
     });
   };
-
-  const buildingName = currentUser.buildingName || currentUser.companyName || 'Gedung Surya Tower';
-  const districtName = 'Jakarta Selatan';
 
   return (
     <div className="min-h-screen bg-slate-100/70 py-2 sm:py-6 px-2 sm:px-4 font-sans text-slate-800">
@@ -357,6 +400,76 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {/* Status Permohonan Pendampingan Pelaku Usaha (jika sudah diajukan) */}
+                {myConsultation && (
+                  <div className="mb-5 p-4 rounded-2xl bg-gradient-to-r from-sky-50 via-blue-50 to-indigo-50 border border-sky-200/90 shadow-xs">
+                    <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-sky-200/60">
+                      <div className="flex items-center space-x-2">
+                        <span className="p-1.5 rounded-lg bg-[#0c406d] text-white">
+                          <Headphones className="w-3.5 h-3.5" />
+                        </span>
+                        <div>
+                          <span className="font-extrabold text-[#0c406d] text-xs block leading-tight">
+                            Permohonan Pendampingan PTSP Anda
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            No. Registrasi: <strong>{myConsultation.refNumber}</strong>
+                          </span>
+                        </div>
+                      </div>
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold border ${
+                        myConsultation.status === 'Menunggu Verifikasi'
+                          ? 'bg-amber-100 text-amber-800 border-amber-300'
+                          : myConsultation.status === 'Diverifikasi & Dijadwalkan'
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                          : myConsultation.status === 'Sedang Didampingi'
+                          ? 'bg-sky-100 text-sky-800 border-sky-300'
+                          : 'bg-slate-100 text-slate-800 border-slate-300'
+                      }`}>
+                        {myConsultation.status}
+                      </span>
+                    </div>
+
+                    <div className="text-[11px] text-slate-600 space-y-1">
+                      <div className="flex items-start justify-between">
+                        <span>Jadwal Konsultasi:</span>
+                        <div className="text-right">
+                          <strong className="text-slate-800 block">{myConsultation.consultationDate} ({myConsultation.method})</strong>
+                          {myConsultation.previousDate && (
+                            <span className="text-[10px] text-amber-700 font-semibold block mt-0.5">
+                              *Telah dijadwalkan ulang oleh Koordinator PTSP (Semula: {myConsultation.previousDate})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {myConsultation.rescheduleReason && (
+                        <div className="text-[10px] bg-amber-50 border border-amber-200 text-amber-900 p-2 rounded-lg mt-1">
+                          <strong className="block text-amber-950 font-bold mb-0.5">Catatan Penjadwalan Ulang Koordinator:</strong>
+                          <p className="italic">"{myConsultation.rescheduleReason}"</p>
+                        </div>
+                      )}
+                      {myConsultation.verifiedBy && (
+                        <div className="pt-1.5 mt-1 border-t border-sky-200/60 text-emerald-700 bg-emerald-50/70 p-2 rounded-lg">
+                          <div className="font-bold flex items-center space-x-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span>Diverifikasi oleh Tim Monitoring PTSP: {myConsultation.verifiedBy}</span>
+                          </div>
+                          {myConsultation.officerNotes && (
+                            <p className="text-[10px] text-slate-700 mt-0.5 italic">
+                              "{myConsultation.officerNotes}"
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {!myConsultation.verifiedBy && (
+                        <p className="text-[10px] text-amber-700 italic pt-0.5">
+                          Permohonan telah masuk ke antrean verifikasi user Monitoring PTSP. Anda akan dihubungi setelah verifikasi berkas selesai.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Main Headline */}
                 <h2 className="text-lg font-extrabold text-slate-900 leading-snug mb-1.5">
@@ -1100,8 +1213,13 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                 </div>
                 <h4 className="text-base font-bold text-slate-900">Permohonan Berhasil Diajukan!</h4>
                 <p className="text-xs text-slate-600 leading-relaxed max-w-xs mx-auto">
-                  Petugas pendampingan PTSP Jakarta Selatan akan menghubungi kontak penanggung jawab gedung untuk konfirmasi jadwal.
+                  Data permohonan telah diteruskan ke data <strong className="text-[#0c406d]">User Monitoring PTSP</strong> untuk dilakukan verifikasi dokumen teknis dan konfirmasi jadwal asistensi.
                 </p>
+
+                <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-bold">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span>Status: Menunggu Verifikasi Tim Monitoring</span>
+                </div>
 
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-left font-mono text-xs space-y-1">
                   <div className="flex justify-between">

@@ -1,4 +1,4 @@
-import { Company, Permit, LKPMRecord, WarningLetter, EmailLog, ComplianceLogEvent, UserAccount } from '../types';
+import { Company, Permit, LKPMRecord, WarningLetter, EmailLog, ComplianceLogEvent, UserAccount, ConsultationApplication } from '../types';
 
 // Helper to get relative ISO date string (YYYY-MM-DD)
 export const getRelativeDate = (daysOffset: number): string => {
@@ -83,3 +83,33 @@ export const INITIAL_WARNING_LETTERS: WarningLetter[] = [];
 export const INITIAL_EMAIL_LOGS: EmailLog[] = [];
 
 export const INITIAL_COMPLIANCE_EVENTS: ComplianceLogEvent[] = [];
+
+export const INITIAL_CONSULTATIONS: ConsultationApplication[] = [
+  {
+    id: 'cs-sample-1',
+    refNumber: 'PTSP-JS-8492',
+    submittedAt: '2026-10-28 09:30',
+    userId: 'user-usaha',
+    userName: 'PT Graha Surya Mandiri',
+    buildingName: 'Gedung Surya Tower',
+    buildingType: 'Perkantoran',
+    companyName: 'PT Graha Surya Mandiri',
+    nib: '0123456789012',
+    address: 'Jl. H.R. Rasuna Said Kav. C-22, Jakarta Selatan',
+    district: 'Jakarta Selatan',
+    picName: 'Bambang Hartono, S.T.',
+    picPhone: '0812-9876-5432',
+    picEmail: 'pengelola@grahasurya.co.id',
+    consultationDate: '2026-11-04',
+    method: 'Tatap Muka di PTSP Jaksel (Kantor Walikota)',
+    topic: 'Pendampingan Pengurusan SLF & Dokumen Kelaikan',
+    notes: 'Mohon asistensi verifikasi persyaratan teknis dan dokumen kelaikan gedung terutama pembaharuan SLF dan rekomendasi proteksi Damkar.',
+    ownedPermits: ['pbg', 'k3'],
+    uploadedFiles: {
+      pbg: 'PBG_Surya_Tower_2021.pdf',
+      k3: 'RiksaUji_Lift_Genset_Disnakertrans_2025.pdf'
+    },
+    preparedRequirementsCount: 7,
+    status: 'Menunggu Verifikasi'
+  }
+];

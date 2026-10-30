@@ -18,9 +18,17 @@ import {
   XCircle,
   FileText,
   UserCheck,
-  GitCompare
+  GitCompare,
+  Headphones,
+  Calendar,
+  Phone,
+  ClipboardCheck,
+  X,
+  Check,
+  ExternalLink,
+  MessageSquare
 } from 'lucide-react';
-import { Permit, LKPMRecord, WarningLetter, UserAccount, Company } from '../types';
+import { Permit, LKPMRecord, WarningLetter, UserAccount, Company, ConsultationApplication, ConsultationStatus } from '../types';
 import { 
   calculateDaysRemaining, 
   getPermitStatusBadge, 
@@ -37,6 +45,9 @@ interface DashboardViewProps {
   warningLetters: WarningLetter[];
   companies?: Company[];
   currentUser?: UserAccount;
+  consultations?: ConsultationApplication[];
+  onUpdateConsultationStatus?: (id: string, status: ConsultationStatus, officerNotes?: string) => void;
+  onRescheduleConsultation?: (id: string, newDate: string, newMethod?: string, rescheduleReason?: string) => void;
   onNavigateTab: (tab: string) => void;
   onOpenLetterWithItem: (item: { type: 'PERMIT' | 'LKPM'; record: any }) => void;
   onSendDirectEmail: (type: 'PERMIT' | 'LKPM', record: any) => void;
@@ -49,6 +60,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   warningLetters,
   companies = [],
   currentUser,
+  consultations = [],
+  onUpdateConsultationStatus,
+  onRescheduleConsultation,
   onNavigateTab,
   onOpenLetterWithItem,
   onSendDirectEmail,
@@ -57,6 +71,74 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // NIB Comparison Data
   const nibComparisonList = buildNIBComparisonList(companies, permits, lkpmRecords);
   const dualViolationsCount = nibComparisonList.filter((n) => n.comparisonStatus === 'DUAL_VIOLATION').length;
+
+  // Permohonan Pendampingan Pelaku Usaha State & Filtering
+  const [selectedConsultationForVerify, setSelectedConsultationForVerify] = useState<ConsultationApplication | null>(null);
+  const [verifyStatusChoice, setVerifyStatusChoice] = useState<ConsultationStatus>('Diverifikasi & Dijadwalkan');
+  const [verifyNotesInput, setVerifyNotesInput] = useState<string>('');
+  const [consultationStatusFilter, setConsultationStatusFilter] = useState<string>('all');
+  const [consultationSearchQuery, setConsultationSearchQuery] = useState<string>('');
+
+  // Reschedule Consultation State (Kewenangan Koordinator)
+  const [selectedConsultationForReschedule, setSelectedConsultationForReschedule] = useState<ConsultationApplication | null>(null);
+  const [rescheduleDateInput, setRescheduleDateInput] = useState<string>('');
+  const [rescheduleMethodInput, setRescheduleMethodInput] = useState<string>('');
+  const [rescheduleReasonInput, setRescheduleReasonInput] = useState<string>('');
+
+  const isKoordinator = currentUser?.role === 'koordinator' || currentUser?.role === 'superadmin';
+
+  const allConsultations = consultations || [];
+  const pendingConsultationsCount = allConsultations.filter(c => c.status === 'Menunggu Verifikasi').length;
+  const verifiedConsultationsCount = allConsultations.filter(c => c.status === 'Diverifikasi & Dijadwalkan').length;
+  const inProgressConsultationsCount = allConsultations.filter(c => c.status === 'Sedang Didampingi').length;
+  const completedConsultationsCount = allConsultations.filter(c => c.status === 'Selesai').length;
+
+  const filteredConsultations = allConsultations.filter((c) => {
+    const matchesStatus = consultationStatusFilter === 'all' || c.status === consultationStatusFilter;
+    const matchesSearch = 
+      c.buildingName.toLowerCase().includes(consultationSearchQuery.toLowerCase()) ||
+      c.companyName.toLowerCase().includes(consultationSearchQuery.toLowerCase()) ||
+      c.refNumber.toLowerCase().includes(consultationSearchQuery.toLowerCase()) ||
+      c.picName.toLowerCase().includes(consultationSearchQuery.toLowerCase()) ||
+      c.nib.includes(consultationSearchQuery);
+    return matchesStatus && matchesSearch;
+  });
+
+  const handleOpenVerifyModal = (app: ConsultationApplication) => {
+    setSelectedConsultationForVerify(app);
+    setVerifyStatusChoice(app.status === 'Menunggu Verifikasi' ? 'Diverifikasi & Dijadwalkan' : app.status);
+    setVerifyNotesInput(
+      app.officerNotes || 
+      `Dokumen kelaikan teknis & izin eksisting gedung ${app.buildingName} telah diperiksa. Permohonan disetujui untuk asistensi teknis PTSP Jakarta Selatan.`
+    );
+  };
+
+  const handleSaveVerification = () => {
+    if (!selectedConsultationForVerify || !onUpdateConsultationStatus) return;
+    onUpdateConsultationStatus(selectedConsultationForVerify.id, verifyStatusChoice, verifyNotesInput);
+    setSelectedConsultationForVerify(null);
+  };
+
+  const handleOpenRescheduleModal = (app: ConsultationApplication) => {
+    setSelectedConsultationForReschedule(app);
+    setRescheduleDateInput(app.consultationDate);
+    setRescheduleMethodInput(app.method);
+    setRescheduleReasonInput(
+      app.rescheduleReason || 'Penyesuaian jadwal koordinasi teknis PTSP Kota Administrasi Jakarta Selatan'
+    );
+  };
+
+  const handleSaveReschedule = () => {
+    if (!selectedConsultationForReschedule || !onRescheduleConsultation) return;
+    onRescheduleConsultation(
+      selectedConsultationForReschedule.id,
+      rescheduleDateInput,
+      rescheduleMethodInput,
+      rescheduleReasonInput
+    );
+    setSelectedConsultationForReschedule(null);
+  };
+
   // State for User Monitor filtering
   const [monitorStatusFilter, setMonitorStatusFilter] = useState<string>('all');
   const [monitorCategoryFilter, setMonitorCategoryFilter] = useState<'all' | 'PERMIT' | 'LKPM'>('all');
@@ -151,6 +233,626 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return matchesStatus && matchesCategory && matchesSearch;
   });
 
+  // Section: Data Permohonan Pendampingan Pelaku Usaha (Untuk Dilakukan Verifikasi)
+  const renderConsultationSection = (accentColor: 'sky' | 'emerald' = 'sky') => (
+    <div className={`bg-white rounded-2xl p-6 border-2 ${accentColor === 'emerald' ? 'border-emerald-500/40' : 'border-sky-500/40'} shadow-xl space-y-6`}>
+      <div className="flex flex-col md:flex-row md:items-center justify-between pb-5 border-b border-slate-200 gap-4">
+        <div className="flex items-start space-x-3">
+          <div className="p-3 rounded-2xl bg-gradient-to-tr from-[#0c406d] to-sky-600 text-white shadow-md">
+            <Headphones className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <h2 className="text-lg font-black text-slate-900 tracking-tight">
+                Data Permohonan Pendampingan Pelaku Usaha
+              </h2>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-sky-100 text-[#0c406d] border border-sky-200">
+                Verifikasi PTSP
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1 max-w-2xl">
+              Daftar permohonan asistensi teknis kelaikan gedung (SLF, PBG, Damkar, K3, Lingkungan) yang diajukan oleh Pelaku Usaha untuk diverifikasi kelengkapan dokumennya dan dijadwalkan oleh User Monitoring PTSP.
+            </p>
+          </div>
+        </div>
+
+        {/* Quick Summary Badges */}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-700">
+            Total Masuk: <strong className="text-slate-900">{allConsultations.length}</strong>
+          </div>
+          <div className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center space-x-1.5 ${
+            pendingConsultationsCount > 0 
+              ? 'bg-amber-100 text-amber-900 border-amber-300 ring-2 ring-amber-400/40' 
+              : 'bg-slate-100 text-slate-500 border-slate-200'
+          }`}>
+            {pendingConsultationsCount > 0 && <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />}
+            <span>Menunggu Verifikasi: <strong>{pendingConsultationsCount}</strong></span>
+          </div>
+          <div className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
+            Diverifikasi: <strong>{verifiedConsultationsCount}</strong>
+          </div>
+          <div className="px-3 py-1.5 rounded-xl bg-sky-50 text-sky-800 border border-sky-200 text-xs font-bold">
+            Sedang Asistensi: <strong>{inProgressConsultationsCount}</strong>
+          </div>
+          <div className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold">
+            Selesai: <strong>{completedConsultationsCount}</strong>
+          </div>
+        </div>
+      </div>
+
+      {/* Search & Filter Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+          <input
+            type="text"
+            placeholder="Cari nama gedung, PT pemohon, NIB, kontak PIC, atau nomor registrasi..."
+            value={consultationSearchQuery}
+            onChange={(e) => setConsultationSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+          />
+        </div>
+
+        {/* Filter Pills */}
+        <div className="flex items-center space-x-1.5 overflow-x-auto scrollbar-none pb-1 sm:pb-0">
+          <span className="text-xs font-bold text-slate-400 pr-1">Filter:</span>
+          {[
+            { id: 'all', label: `Semua (${allConsultations.length})` },
+            { id: 'Menunggu Verifikasi', label: `Menunggu (${pendingConsultationsCount})` },
+            { id: 'Diverifikasi & Dijadwalkan', label: `Diverifikasi (${verifiedConsultationsCount})` },
+            { id: 'Sedang Didampingi', label: `Didampingi (${inProgressConsultationsCount})` },
+            { id: 'Selesai', label: `Selesai (${completedConsultationsCount})` }
+          ].map((pill) => (
+            <button
+              key={pill.id}
+              onClick={() => setConsultationStatusFilter(pill.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition border ${
+                consultationStatusFilter === pill.id
+                  ? 'bg-[#0c406d] text-white border-[#0c406d] shadow-xs'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+              }`}
+            >
+              {pill.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Alert Banner Khusus Koordinator */}
+      {isKoordinator && (
+        <div className="p-3.5 bg-gradient-to-r from-sky-50 via-indigo-50 to-blue-50 border border-sky-200 rounded-2xl text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sky-950 shadow-xs">
+          <div className="flex items-center space-x-2.5">
+            <span className="p-2 rounded-xl bg-sky-600 text-white shadow-xs shrink-0">
+              <Calendar className="w-4 h-4" />
+            </span>
+            <div>
+              <span className="font-extrabold text-sky-950 block">Kewenangan Akses Koordinator: Pengaturan Jadwal Asistensi</span>
+              <p className="text-[11px] text-slate-600 mt-0.5">
+                Sebagai User Koordinator, Anda berwenang <strong>merubah dan mengatur ulang jadwal pendampingan</strong> bagi seluruh pelaku usaha pemohon.
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-extrabold uppercase tracking-wider bg-sky-200 text-sky-900 px-2.5 py-1 rounded-full border border-sky-300 shrink-0 self-start sm:self-auto">
+            Akses Ubah Jadwal Aktif
+          </span>
+        </div>
+      )}
+
+      {/* Table / List of Consultation Applications */}
+      <div className="overflow-x-auto rounded-2xl border border-slate-200">
+        <table className="w-full text-left text-xs">
+          <thead className="bg-slate-50/90 text-slate-700 uppercase font-bold border-b border-slate-200">
+            <tr>
+              <th className="py-3 px-4">No. Registrasi &amp; Tanggal</th>
+              <th className="py-3 px-4">Gedung &amp; Pelaku Usaha</th>
+              <th className="py-3 px-4">Jadwal &amp; Metode Asistensi</th>
+              <th className="py-3 px-4">Kontak PIC Pemohon</th>
+              <th className="py-3 px-4">Izin &amp; Dokumen Eksisting</th>
+              <th className="py-3 px-4">Status Verifikasi</th>
+              <th className="py-3 px-4 text-center">Tindakan</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {filteredConsultations.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="py-10 text-center text-slate-400">
+                  <Headphones className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p className="font-semibold text-sm text-slate-600">Belum Ada Permohonan Pendampingan</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Permohonan yang diajukan oleh Pelaku Usaha melalui portal Jaksel Building Assistance akan otomatis masuk ke sini untuk diverifikasi.
+                  </p>
+                </td>
+              </tr>
+            ) : (
+              filteredConsultations.map((app) => (
+                <tr key={app.id} className="hover:bg-slate-50/80 transition">
+                  <td className="py-3 px-4">
+                    <span className="font-mono font-extrabold text-[#0c406d] block">{app.refNumber}</span>
+                    <span className="text-[11px] text-slate-400 block mt-0.5">{app.submittedAt}</span>
+                  </td>
+                  <td className="py-3 px-4 max-w-xs">
+                    <span className="font-bold text-slate-900 block truncate">{app.buildingName}</span>
+                    <span className="text-[11px] text-slate-600 block truncate">{app.companyName}</span>
+                    <div className="flex items-center space-x-1.5 text-[10px] text-slate-400 font-mono mt-0.5">
+                      <span>NIB: {app.nib}</span>
+                      <span>•</span>
+                      <span className="text-sky-700 font-sans font-semibold">{app.buildingType}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 px-4 max-w-[210px]">
+                    <span className="font-bold text-slate-800 block flex items-center space-x-1">
+                      <Calendar className="w-3.5 h-3.5 text-sky-600" />
+                      <span>{app.consultationDate}</span>
+                    </span>
+                    <span className="text-[11px] text-slate-600 block truncate mt-0.5">{app.method}</span>
+                    {app.previousDate && (
+                      <div className="mt-1">
+                        <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                          Jadwal Diubah (Semula: {app.previousDate})
+                        </span>
+                        {app.rescheduledBy && (
+                          <span className="text-[9px] text-slate-500 block mt-0.5">
+                            Oleh: {app.rescheduledBy}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <p className="text-[10px] text-slate-500 italic truncate mt-0.5 max-w-[190px]">
+                      "{app.notes}"
+                    </p>
+                  </td>
+                  <td className="py-3 px-4">
+                    <span className="font-bold text-slate-900 block">{app.picName}</span>
+                    <span className="text-[11px] text-slate-600 block font-mono">{app.picPhone}</span>
+                    {app.picEmail && <span className="text-[10px] text-slate-400 block truncate">{app.picEmail}</span>}
+                  </td>
+                  <td className="py-3 px-4">
+                    <div className="flex flex-wrap gap-1 max-w-[180px]">
+                      {app.ownedPermits.map((p) => (
+                        <span key={p} className="px-1.5 py-0.2 rounded text-[10px] font-bold uppercase bg-slate-100 text-slate-700 border border-slate-200">
+                          {p}
+                        </span>
+                      ))}
+                      {Object.keys(app.uploadedFiles || {}).length > 0 && (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-100 text-blue-800">
+                          {Object.keys(app.uploadedFiles).length} berkas
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-3 px-4">
+                    <span className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold border ${
+                      app.status === 'Menunggu Verifikasi'
+                        ? 'bg-amber-50 text-amber-800 border-amber-300'
+                        : app.status === 'Diverifikasi & Dijadwalkan'
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                        : app.status === 'Sedang Didampingi'
+                        ? 'bg-sky-50 text-sky-800 border-sky-300'
+                        : app.status === 'Selesai'
+                        ? 'bg-slate-100 text-slate-700 border-slate-300'
+                        : 'bg-rose-50 text-rose-800 border-rose-300'
+                    }`}>
+                      {app.status === 'Menunggu Verifikasi' && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />}
+                      {app.status === 'Diverifikasi & Dijadwalkan' && <CheckCircle className="w-3 h-3 text-emerald-600" />}
+                      {app.status === 'Sedang Didampingi' && <Clock className="w-3 h-3 text-sky-600" />}
+                      {app.status === 'Selesai' && <CheckCircle2 className="w-3 h-3 text-slate-600" />}
+                      <span>{app.status}</span>
+                    </span>
+                    {app.verifiedBy && (
+                      <span className="text-[10px] text-slate-500 block mt-1">
+                        Verifikator: <strong>{app.verifiedBy}</strong>
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4 text-center">
+                    <div className="flex flex-col items-center gap-1.5 min-w-[125px]">
+                      {isKoordinator && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenRescheduleModal(app)}
+                          className="w-full px-2.5 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center space-x-1.5 bg-sky-600 hover:bg-sky-700 text-white"
+                          title="Ubah Jadwal Pendampingan (Kewenangan Koordinator)"
+                        >
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>Ubah Jadwal</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleOpenVerifyModal(app)}
+                        className={`w-full px-2.5 py-1.5 rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center space-x-1.5 ${
+                          app.status === 'Menunggu Verifikasi' && !isKoordinator
+                            ? 'bg-[#0c406d] hover:bg-[#083053] text-white ring-2 ring-[#0c406d]/20'
+                            : 'bg-white hover:bg-slate-100 text-slate-800 border border-slate-300'
+                        }`}
+                      >
+                        <ClipboardCheck className="w-3.5 h-3.5" />
+                        <span>{app.status === 'Menunggu Verifikasi' ? 'Verifikasi' : 'Detail / Status'}</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
+        <span>Menampilkan {filteredConsultations.length} dari {allConsultations.length} data permohonan pendampingan</span>
+        <span className="text-[#0c406d] font-semibold">Unit Pelaksana PTSP Kota Administrasi Jakarta Selatan</span>
+      </div>
+    </div>
+  );
+
+  // Modal Khusus Koordinator: Ubah Jadwal Pendampingan
+  const renderRescheduleModal = () => {
+    if (!selectedConsultationForReschedule) return null;
+    const app = selectedConsultationForReschedule;
+
+    const quickReasons = [
+      'Penyesuaian agenda tim teknis penilai SLF/PBG PTSP',
+      'Permintaan konfirmasi perubahan jadwal dari penanggung jawab gedung',
+      'Penjadwalan sidang pleno asistensi kelaikan fungsi gedung',
+      'Asistensi lapangan bersama Dinas Gulkarmat / Disnakertrans'
+    ];
+
+    const generateWhatsAppLink = () => {
+      const cleanPhone = app.picPhone.replace(/[^0-9]/g, '');
+      const waNumber = cleanPhone.startsWith('0') ? `62${cleanPhone.slice(1)}` : cleanPhone;
+      const message = `Halo Bpk/Ibu ${app.picName} (${app.buildingName}), kami dari Tim Koordinator PTSP Kota Jakarta Selatan menginformasikan bahwa jadwal asistensi/pendampingan permohonan No. Reg ${app.refNumber} dijadwalkan ulang menjadi tanggal *${rescheduleDateInput}* melalui metode *${rescheduleMethodInput}*. Catatan: ${rescheduleReasonInput}. Terima kasih.`;
+      return `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
+    };
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
+        <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 my-8">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="p-2.5 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-700 text-white shadow-sm">
+                <Calendar className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900">
+                  Ubah Jadwal Pendampingan (Koordinator)
+                </h3>
+                <p className="text-xs text-slate-500 font-mono">
+                  No. Registrasi: <strong className="text-[#0c406d]">{app.refNumber}</strong> • {app.buildingName}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setSelectedConsultationForReschedule(null)}
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="space-y-4 text-xs">
+            {/* Info Pelaku Usaha & Jadwal Saat Ini */}
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Gedung &amp; Perusahaan:</span>
+                <strong className="text-slate-900">{app.buildingName} ({app.companyName})</strong>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500">Kontak PIC Pemohon:</span>
+                <span className="font-semibold text-slate-800">{app.picName} ({app.picPhone})</span>
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-slate-200 text-amber-800">
+                <span>Jadwal Terdaftar Saat Ini:</span>
+                <strong className="font-mono">{app.consultationDate} ({app.method})</strong>
+              </div>
+            </div>
+
+            {/* Form Ubah Jadwal */}
+            <div className="space-y-3 bg-sky-50/50 p-4 border border-sky-200 rounded-2xl">
+              <div>
+                <label className="block font-bold text-slate-800 mb-1">
+                  Pilih Tanggal Jadwal Baru <span className="text-rose-500">*</span>:
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={rescheduleDateInput}
+                  onChange={(e) => setRescheduleDateInput(e.target.value)}
+                  className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-800 mb-1">
+                  Metode Pendampingan <span className="text-rose-500">*</span>:
+                </label>
+                <select
+                  value={rescheduleMethodInput}
+                  onChange={(e) => setRescheduleMethodInput(e.target.value)}
+                  className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-sky-500"
+                >
+                  <option value="Tatap Muka di PTSP Jaksel (Kantor Walikota)">Tatap Muka di PTSP Jaksel (Kantor Walikota)</option>
+                  <option value="Konsultasi Daring (Online Zoom Meeting)">Konsultasi Daring (Online Zoom Meeting)</option>
+                  <option value="Permohonan Asistensi Kunjungan Lapangan">Permohonan Asistensi Kunjungan Lapangan</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-800 mb-1">
+                  Alasan / Catatan Penjadwalan Ulang dari Koordinator:
+                </label>
+                <textarea
+                  rows={2}
+                  value={rescheduleReasonInput}
+                  onChange={(e) => setRescheduleReasonInput(e.target.value)}
+                  placeholder="Contoh: Penyesuaian jadwal tim pengkaji teknis kelaikan gedung..."
+                  className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-sky-500"
+                />
+
+                {/* Quick Reason Suggestions */}
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {quickReasons.map((qr) => (
+                    <button
+                      key={qr}
+                      type="button"
+                      onClick={() => setRescheduleReasonInput(qr)}
+                      className="px-2 py-0.5 rounded text-[10px] bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition text-left"
+                    >
+                      + {qr}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Pemberitahuan Koordinator & Tombol WA */}
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 flex items-start justify-between gap-2">
+              <div>
+                <strong>Otoritas Penjadwalan:</strong>
+                <p className="mt-0.5">
+                  Dilakukan oleh Koordinator <strong>{currentUser?.name || 'Andri Wicaksono'}</strong>. Jadwal baru akan otomatis diperbarui dan langsung tampil di portal Pelaku Usaha &amp; User Monitoring.
+                </p>
+              </div>
+              <a
+                href={generateWhatsAppLink()}
+                target="_blank"
+                rel="noreferrer"
+                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10px] transition shrink-0 flex items-center space-x-1 shadow-xs"
+                title="Beri tahu PIC via WhatsApp"
+              >
+                <Phone className="w-3 h-3" />
+                <span>Kirim WA</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Modal Footer */}
+          <div className="pt-4 border-t border-slate-200 flex items-center justify-end space-x-2.5 mt-4">
+            <button
+              type="button"
+              onClick={() => setSelectedConsultationForReschedule(null)}
+              className="px-4 py-2 border border-slate-300 text-slate-700 rounded-xl text-xs font-semibold hover:bg-slate-50 transition"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveReschedule}
+              className="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold transition shadow-md flex items-center space-x-1.5"
+            >
+              <Check className="w-4 h-4" />
+              <span>Simpan Jadwal Baru</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Modal Verifikasi Permohonan Pendampingan
+  const renderVerifyModal = () => {
+    if (!selectedConsultationForVerify) return null;
+    const app = selectedConsultationForVerify;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
+        <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 my-8">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-5">
+            <div className="flex items-center space-x-3">
+              <div className="p-2.5 rounded-xl bg-gradient-to-tr from-[#0c406d] to-sky-600 text-white shadow-sm">
+                <ClipboardCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900">
+                  Verifikasi Permohonan Pendampingan Gedung
+                </h3>
+                <p className="text-xs text-slate-500 font-mono">
+                  No. Registrasi: <strong className="text-[#0c406d]">{app.refNumber}</strong> • Diajukan: {app.submittedAt}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setSelectedConsultationForVerify(null)}
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+            {/* 1. Detail Gedung & Pemohon */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">1. Identitas Bangunan &amp; Pelaku Usaha</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-slate-500 block">Nama Bangunan Gedung:</span>
+                  <strong className="text-slate-900 text-sm">{app.buildingName}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Fungsi / Jenis Gedung:</span>
+                  <strong className="text-[#0c406d]">{app.buildingType}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Badan Usaha / Perusahaan:</span>
+                  <strong className="text-slate-800">{app.companyName}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Nomor Induk Berusaha (NIB):</span>
+                  <strong className="font-mono text-slate-800">{app.nib}</strong>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="text-slate-500 block">Alamat Bangunan:</span>
+                  <span className="text-slate-700">{app.address}, {app.district}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Kontak Penanggung Jawab (PIC) */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">2. Kontak Penanggung Jawab (PIC)</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div>
+                  <span className="text-slate-500 block">Nama PIC:</span>
+                  <strong className="text-slate-900">{app.picName}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Nomor WhatsApp / HP:</span>
+                  <strong className="font-mono text-emerald-700">{app.picPhone}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Email Asistensi:</span>
+                  <strong className="text-slate-700">{app.picEmail || '-'}</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Permintaan Konsultasi & Kendala */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">3. Rencana Jadwal &amp; Kendala Pemohon</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs mb-2">
+                <div>
+                  <span className="text-slate-500 block">Tanggal Rencana:</span>
+                  <strong className="text-slate-900">{app.consultationDate}</strong>
+                  {app.previousDate && (
+                    <span className="text-[10px] text-amber-700 block font-normal">(Semula: {app.previousDate})</span>
+                  )}
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Pilihan Metode:</span>
+                  <strong className="text-sky-700">{app.method}</strong>
+                </div>
+              </div>
+              {isKoordinator && (
+                <div className="p-2.5 bg-indigo-50/80 border border-indigo-200 rounded-xl flex items-center justify-between text-xs mb-2">
+                  <div className="flex items-center space-x-2 text-indigo-900">
+                    <Calendar className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                    <span className="text-[11px] font-medium">Otoritas Koordinator: Ingin menyesuaikan tanggal atau metode pendampingan?</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedConsultationForVerify(null);
+                      handleOpenRescheduleModal(app);
+                    }}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-xs transition"
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>Ubah Jadwal</span>
+                  </button>
+                </div>
+              )}
+              <div className="p-3 bg-white border border-slate-200 rounded-xl text-xs">
+                <span className="text-slate-500 block text-[11px] mb-1">Kendala / Dokumen yang Perlu Diasistensi:</span>
+                <p className="text-slate-800 italic leading-relaxed">"{app.notes}"</p>
+              </div>
+
+              {/* Dokumen lampiran */}
+              <div className="pt-2">
+                <span className="text-slate-500 block text-[11px] mb-1 font-semibold">Izin Terdaftar &amp; Lampiran Berkas:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {app.ownedPermits.map((p) => (
+                    <span key={p} className="px-2 py-0.5 rounded-lg text-[11px] font-bold uppercase bg-blue-100 text-[#0c406d]">
+                      {p}
+                    </span>
+                  ))}
+                  {Object.entries(app.uploadedFiles || {}).map(([key, fName]) => (
+                    <span key={key} className="px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-emerald-100 text-emerald-800 flex items-center space-x-1">
+                      <span>📄</span>
+                      <span>{fName}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* 4. FORMULIR VERIFIKASI MONITORING */}
+            <div className="bg-sky-50/60 border border-sky-200 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center space-x-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-sky-600" />
+                <h4 className="text-sm font-extrabold text-[#0c406d]">
+                  Keputusan Verifikasi Tim Monitoring PTSP
+                </h4>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Ubah Status Verifikasi:
+                </label>
+                <select
+                  value={verifyStatusChoice}
+                  onChange={(e) => setVerifyStatusChoice(e.target.value as ConsultationStatus)}
+                  className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-sky-500"
+                >
+                  <option value="Diverifikasi & Dijadwalkan">✅ Diverifikasi &amp; Dijadwalkan (Setujui Permohonan)</option>
+                  <option value="Sedang Didampingi">🔄 Sedang Didampingi (Asistensi Berjalan)</option>
+                  <option value="Selesai">🎉 Selesai (Pendampingan Tuntas)</option>
+                  <option value="Perlu Perbaikan">⚠️ Perlu Perbaikan (Berkas Belum Lengkap)</option>
+                  <option value="Menunggu Verifikasi">⏳ Menunggu Verifikasi (Antrean)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Catatan, Instruksi, atau Jadwal Definitif Verifikator:
+                </label>
+                <textarea
+                  rows={3}
+                  value={verifyNotesInput}
+                  onChange={(e) => setVerifyNotesInput(e.target.value)}
+                  placeholder="Tuliskan catatan verifikasi teknis atau instruksi kehadiran untuk pemohon..."
+                  className="w-full p-3 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
+                <span>Petugas Verifikator: <strong className="text-slate-800">{currentUser?.name || 'User Monitor'}</strong> ({currentUser?.roleTitle || 'Monitoring PTSP'})</span>
+                <span className="text-[11px] text-slate-400">Tersinkronisasi Real-Time</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Modal Footer */}
+          <div className="pt-4 border-t border-slate-200 flex items-center justify-end space-x-2.5 mt-4">
+            <button
+              type="button"
+              onClick={() => setSelectedConsultationForVerify(null)}
+              className="px-4 py-2 border border-slate-300 text-slate-700 rounded-xl text-xs font-semibold hover:bg-slate-50 transition"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveVerification}
+              className="px-5 py-2 bg-[#0c406d] hover:bg-[#083053] text-white rounded-xl text-xs font-bold transition shadow-md flex items-center space-x-1.5"
+            >
+              <Check className="w-4 h-4" />
+              <span>Simpan Hasil Verifikasi</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // =========================================================================
   // VIEW KHUSUS: USER MONITOR (READ-ONLY DASHBOARD PEMANTAUAN)
   // "Untuk User Monitoring Tampilan Hanya Dashbord Pemantauan Dilengkapi panel khusus
@@ -177,13 +879,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 Pemantauan real-time rasio dan persentase tindak lanjut seluruh legalitas izin usaha
                 serta kepatuhan pelaporan LKPM BKPM di seluruh entitas perusahaan.
               </p>
-              <div className="flex items-center space-x-3 pt-1 text-xs text-slate-300">
+              <div className="flex flex-wrap items-center gap-3 pt-1 text-xs text-slate-300">
                 <span className="flex items-center space-x-1.5 font-semibold text-emerald-400">
                   <UserCheck className="w-4 h-4" />
                   <span>{currentUser.name} ({currentUser.roleTitle})</span>
                 </span>
                 <span>•</span>
                 <span className="text-slate-400">Mode Pengawasan: Read-Only Audit</span>
+                {pendingConsultationsCount > 0 && (
+                  <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-bold border border-amber-400/40 animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    <span>{pendingConsultationsCount} Permohonan Pendampingan Baru Perlu Diverifikasi</span>
+                  </span>
+                )}
               </div>
             </div>
 
@@ -238,6 +946,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
         </div>
+
+        {/* DATA PERMOHONAN PENDAMPINGAN PELAKU USAHA (UNTUK DILAKUKAN VERIFIKASI OLEH USER MONITORING) */}
+        {renderConsultationSection('emerald')}
 
         {/* PANEL KHUSUS: PEMANTAUAN PERSENTASE TINDAK LANJUT */}
         <div className="bg-white rounded-2xl p-6 border-2 border-emerald-500/40 shadow-lg space-y-6">
@@ -765,6 +1476,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span>Data tersinkronisasi otomatis dengan OSS-RBA</span>
           </div>
         </div>
+
+        {/* Modal Verifikasi Permohonan Pendampingan */}
+        {renderVerifyModal()}
+
+        {/* Modal Ubah Jadwal Pendampingan (Khusus Koordinator) */}
+        {renderRescheduleModal()}
       </div>
     );
   }
@@ -843,6 +1560,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* DATA PERMOHONAN PENDAMPINGAN PELAKU USAHA (UNTUK DILAKUKAN VERIFIKASI) */}
+      {renderConsultationSection('sky')}
 
       {/* PERSENTASE TINDAK LANJUT */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-md text-slate-900 space-y-4">
@@ -1475,6 +2195,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Modal Verifikasi Permohonan Pendampingan */}
+      {renderVerifyModal()}
+
+      {/* Modal Ubah Jadwal Pendampingan (Koordinator) */}
+      {renderRescheduleModal()}
     </div>
   );
 };
