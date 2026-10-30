@@ -39,63 +39,7 @@ import {
   Cpu
 } from 'lucide-react';
 import { UserAccount } from '../types';
-import { Building4DViewer, JAKSEL_4D_BIM_IMG } from './Building4DViewer';
-
-interface System3DModule {
-  id: string;
-  name: string;
-  shortTitle: string;
-  tag: string;
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
-  subtitle: string;
-  standards: string;
-  status: string;
-  description: string;
-  details: string[];
-}
-
-const SYSTEM_3D_MODULES: System3DModule[] = [
-  {
-    id: 'fasad',
-    name: 'Sistem Fasad & Selubung Gedung 3D',
-    shortTitle: 'Fasad Menara',
-    tag: 'Fasad',
-    icon: Building2,
-    color: 'from-sky-500 via-cyan-600 to-teal-700',
-    subtitle: 'Ketahanan Angin & Efisiensi Energi (OTTV)',
-    standards: 'Pergub DKI No. 38/2012 (Green Building)',
-    status: 'Terinspeksi & Kedap Cuaca',
-    description: 'Analisis 3D selubung kaca curtain wall low-e double glazed, sealants kedap rembesan air hujan, dan braket penahan terpaan angin kencang elevasi tinggi.',
-    details: ['Nilai OTTV: < 35 Watt/m² (Kriteria Gedung Hijau)', 'Uji Beban Angin: 120 km/jam', 'Sealant Integritas: Baik (Tanpa Retak/Bocor)']
-  },
-  {
-    id: 'mep',
-    name: 'Sistem Mekanikal, Lift & Kelistrikan 3D',
-    shortTitle: 'Podium & MEP',
-    tag: 'MEP',
-    icon: Cpu,
-    color: 'from-amber-500 via-orange-600 to-amber-700',
-    subtitle: 'Transportasi Vertikal & Daya Cadangan',
-    standards: 'Permenaker No. 6/2017 & No. 12/2015',
-    status: 'K3 Lift & Genset Teruji',
-    description: 'Pemetaan 3D jalur poros lift penumpang & darurat, genset silent backup 1500 kVA dengan transfer switch otomatis (ATS), trafo PLN, dan pompa booster distribusi.',
-    details: ['Lift Penumpang: Sertifikasi K3 Uji Beban 125%', 'Genset Cadangan: Uji Otomatis ATS Siap 10 Detik', 'Penyalur Petir: Tahanan Pentanahan < 2 Ohm']
-  },
-  {
-    id: 'damkar',
-    name: 'Sistem Proteksi Kebakaran Aktif 3D',
-    shortTitle: 'Proteksi Damkar',
-    tag: 'Safety',
-    icon: ShieldCheck,
-    color: 'from-rose-500 via-red-600 to-rose-700',
-    subtitle: 'Sprinkler, Hydrant & Smoke Evacuation',
-    standards: 'Perda DKI No. 8/2008 & NFPA 13/14',
-    status: 'Tekanan Siaga 8 Bar Sesuai SNI',
-    description: 'Simulasi 3D distribusi pipa basah sprinkler otomatis, pilar hydrant luar gedung, siamese connection, tangga darurat bertekanan positif, dan panel fire alarm addressable.',
-    details: ['Tekanan Hydrant Lantai Atas: 4.5 Bar (Sesuai Syarat)', 'Cadangan Air Pemadam: 45 Menit Operasi Penuh', 'Detektor Asap Addressable: 100% Berfungsi Normal']
-  }
-];
+import { Building4DViewer } from './Building4DViewer';
 
 interface BuildingControlViewProps {
   currentUser: UserAccount;
@@ -114,10 +58,7 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
   // Fullscreen 4D Modal
   const [show4DFullscreen, setShow4DFullscreen] = useState<boolean>(false);
 
-  // 3D System Inspection Module Modal State
-  const [active3DModule, setActive3DModule] = useState<System3DModule | null>(null);
-
-  // Photo / Blueprint viewer modal state
+  // Photo viewer modal state
   const [activePhotoModal, setActivePhotoModal] = useState<{ url: string; title: string; subtitle: string } | null>(null);
 
   // Step 1: Jenis / Fungsi Bangunan Gedung
@@ -384,31 +325,12 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                   />
                 </div>
 
-                {/* Building Profile Card with 4D BIM Thumbnail */}
+                {/* Building Profile Card */}
                 <div className="bg-gradient-to-br from-blue-50/70 via-white to-sky-50/40 border border-blue-200/90 rounded-2xl p-4 mb-5 shadow-xs">
                   <div className="flex items-start gap-3.5">
-                    {/* Clickable 4D BIM Photo */}
-                    <div 
-                      onClick={() => setActivePhotoModal({
-                        url: JAKSEL_4D_BIM_IMG,
-                        title: `${buildingName} - 4D Digital Twin`,
-                        subtitle: `BIM 4D Architectural Model • ${selectedBuilding} • ${currentUser.address || 'Jakarta Selatan'}`
-                      })}
-                      className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden shrink-0 border border-slate-200 shadow-xs cursor-pointer group"
-                      title="Klik untuk memperbesar model 4D BIM"
-                    >
-                      <img 
-                        src={JAKSEL_4D_BIM_IMG}
-                        alt={buildingName}
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                      />
-                      <div className="absolute inset-0 bg-slate-950/20 group-hover:bg-slate-950/40 transition flex items-center justify-center opacity-0 group-hover:opacity-100">
-                        <Maximize2 className="w-4 h-4 text-white drop-shadow" />
-                      </div>
-                      <span className="absolute bottom-1 right-1 bg-sky-600/90 text-[8px] font-black text-white px-1 py-0.5 rounded font-mono">
-                        4D BIM
-                      </span>
+                    {/* Building Icon Badge */}
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#0c406d] to-sky-700 flex items-center justify-center text-white shrink-0 shadow-md border-t border-l border-white/40 border-b-2 border-r-2 border-black/20">
+                      <Building2 className="w-7 h-7 sm:w-8 sm:h-8 text-white drop-shadow-sm" />
                     </div>
 
                     <div className="flex-1 min-w-0">
@@ -502,34 +424,24 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                 </div>
               </div>
 
-              {/* 4D BIM Assurance Footer Banner */}
+              {/* Sistem Kelaikan Terintegrasi Footer Banner */}
               <div className="mt-6 pt-3 border-t border-slate-100">
-                <div 
-                  onClick={() => setActivePhotoModal({
-                    url: JAKSEL_4D_BIM_IMG,
-                    title: 'Model 4D Digital Twin Gedung Jakarta Selatan',
-                    subtitle: 'BIM 4D Architectural Model • Standar Kelaikan Bangunan Gedung Ramah Lingkungan'
-                  })}
-                  className="w-full p-3 rounded-xl bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white flex items-center justify-between cursor-pointer group shadow-xs"
-                >
+                <div className="w-full p-3 rounded-xl bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white flex items-center justify-between shadow-xs">
                   <div className="flex items-center space-x-3">
-                    <div className="w-9 h-9 rounded-lg overflow-hidden shrink-0 border border-sky-400/30">
-                      <img 
-                        src={JAKSEL_4D_BIM_IMG} 
-                        alt="4D BIM Model" 
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover group-hover:scale-110 transition" 
-                      />
+                    <div className="w-9 h-9 rounded-lg bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-300 shrink-0">
+                      <ShieldCheck className="w-5 h-5 text-sky-300" />
                     </div>
                     <div>
                       <h4 className="text-xs font-bold leading-tight flex items-center space-x-1.5">
                         <Box className="w-3.5 h-3.5 text-sky-400" />
-                        <span>Sistem Kelaikan 4D Terintegrasi</span>
+                        <span>Sistem Kelaikan Gedung Terintegrasi</span>
                       </h4>
                       <p className="text-[10px] text-slate-300">PP No. 16/2021 &amp; Perda DKI No. 7/2010</p>
                     </div>
                   </div>
-                  <Eye className="w-4 h-4 text-sky-300 group-hover:scale-110 transition shrink-0" />
+                  <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">
+                    PTSP Jaksel
+                  </span>
                 </div>
               </div>
             </section>
@@ -912,23 +824,10 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                   </div>
                 </div>
 
-                {/* Building Profile Summary Card with 4D BIM Thumbnail */}
+                {/* Building Profile Summary Card */}
                 <div className="bg-gradient-to-r from-blue-50/80 to-white border border-blue-200/90 rounded-2xl p-3.5 flex items-center gap-3.5 mb-4 shadow-2xs">
-                  <div 
-                    onClick={() => setActivePhotoModal({
-                      url: JAKSEL_4D_BIM_IMG,
-                      title: `${buildingName} - Model 4D Digital Twin`,
-                      subtitle: `${selectedBuilding} • ${currentUser.address || 'Jakarta Selatan'}`
-                    })}
-                    className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-slate-200 shadow-2xs cursor-pointer group"
-                    title="Klik untuk memperbesar model 4D BIM"
-                  >
-                    <img 
-                      src={JAKSEL_4D_BIM_IMG} 
-                      alt={buildingName} 
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover group-hover:scale-105 transition" 
-                    />
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#0c406d] to-sky-700 flex items-center justify-center text-white shrink-0 shadow-sm border-t border-l border-white/40 border-b-2 border-r-2 border-black/20">
+                    <Building2 className="w-6 h-6 text-white drop-shadow-sm" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center space-x-1.5">
@@ -1092,42 +991,6 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
               <span className="text-xs font-mono font-bold text-slate-700 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
                 NIB: {currentUser.nib || '0123456789012'}
               </span>
-            </div>
-
-            {/* Zona & Modul Inspeksi 3D (Hanya Gambar Icon 3D) */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-1.5">
-                  <Box className="w-3.5 h-3.5 text-[#0c406d]" />
-                  <h4 className="text-xs font-bold text-slate-800">Zona &amp; Modul Inspeksi 3D</h4>
-                </div>
-                <span className="text-[10px] text-sky-700 font-bold bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200">
-                  3 Modul 3D
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2.5">
-                {SYSTEM_3D_MODULES.map((item) => {
-                  const IconComp = item.icon;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setActive3DModule(item)}
-                      className="group relative flex items-center justify-center p-3 rounded-2xl bg-gradient-to-b from-slate-50 to-slate-100 hover:from-white hover:to-sky-50/70 border border-slate-200/90 hover:border-sky-300 shadow-2xs hover:shadow-md transition-all duration-300 cursor-pointer overflow-hidden transform hover:-translate-y-0.5 active:scale-95"
-                      title={item.name}
-                    >
-                      {/* 3D Isometric Icon Box */}
-                      <div className={`relative w-11 h-11 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center text-white shadow-md border-t border-l border-white/40 border-b-2 border-r-2 border-black/20 group-hover:scale-110 transition-transform duration-300`}>
-                        <IconComp className="w-5 h-5 drop-shadow-sm" />
-                        <span className="absolute -top-1 -right-1 flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
             </div>
           </div>
 
@@ -1591,92 +1454,6 @@ export const BuildingControlView: React.FC<BuildingControlViewProps> = ({
                   setShowConsultationModal(true);
                 }}
               />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* MODAL 6: DETAIL INSPEKSI SISTEM 3D GEDUNG                                */}
-      {/* ========================================================================= */}
-      {active3DModule && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 animate-fade-in">
-          <div className="bg-slate-900 rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-700 relative flex flex-col">
-            {/* Header with 3D gradient */}
-            <div className="p-4 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${active3DModule.color} flex items-center justify-center text-white shadow-md border-t border-l border-white/40 border-b-2 border-r-2 border-black/20 shrink-0`}>
-                  {React.createElement(active3DModule.icon, { className: 'w-5 h-5 drop-shadow-sm' })}
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-sm font-extrabold text-white truncate">{active3DModule.name}</h3>
-                  <p className="text-xs text-sky-400 font-mono truncate">{active3DModule.standards}</p>
-                </div>
-              </div>
-              <button 
-                type="button"
-                onClick={() => setActive3DModule(null)} 
-                className="p-1.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition shrink-0 ml-2"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="p-5 space-y-4 text-xs text-slate-300">
-              <div className="flex items-center justify-between bg-slate-800/80 p-3 rounded-2xl border border-slate-700">
-                <div>
-                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Status Pemeriksaan 3D</span>
-                  <div className="text-emerald-400 font-bold flex items-center space-x-1.5 mt-0.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>{active3DModule.status}</span>
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-sky-300 bg-sky-950/80 border border-sky-800 px-2.5 py-1 rounded-full shrink-0">
-                  3D Modul Aktif
-                </span>
-              </div>
-
-              <div>
-                <h4 className="text-xs font-bold text-white mb-1.5">Deskripsi Teknis Rekayasa:</h4>
-                <p className="text-slate-300 leading-relaxed bg-slate-800/40 p-3 rounded-xl border border-slate-700/60">
-                  {active3DModule.description}
-                </p>
-              </div>
-
-              <div>
-                <h4 className="text-xs font-bold text-white mb-2">Parameter &amp; Hasil Uji Lapangan:</h4>
-                <div className="space-y-1.5">
-                  {active3DModule.details.map((item, idx) => (
-                    <div key={idx} className="flex items-center space-x-2 bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/50">
-                      <span className="w-2 h-2 rounded-full bg-sky-400 shrink-0" />
-                      <span className="text-slate-200 font-medium">{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="p-4 bg-slate-950/80 border-t border-slate-800 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => {
-                  setActive3DModule(null);
-                  setShow4DFullscreen(true);
-                }}
-                className="px-4 py-2 bg-[#0c406d] hover:bg-sky-600 text-white rounded-xl font-bold transition text-xs flex items-center space-x-1.5 shadow-sm"
-              >
-                <Maximize2 className="w-3.5 h-3.5" />
-                <span>Simulasi di Model 4D</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setActive3DModule(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl font-bold transition text-xs"
-              >
-                Tutup
-              </button>
             </div>
           </div>
         </div>

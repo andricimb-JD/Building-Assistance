@@ -36,87 +36,25 @@ interface Building4DViewerProps {
 
 type TimePhase = 'phase1' | 'phase2' | 'phase3' | 'phase4';
 
-interface HotspotData {
-  id: string;
-  name: string;
-  level: string;
-  system: string;
-  status: 'Memenuhi Syarat' | 'Butuh Verifikasi' | 'Rekomendasi Teknis';
-  permitName: string;
-  description: string;
-  position: [number, number, number];
-}
-
 export const Building4DViewer: React.FC<Building4DViewerProps> = ({
   buildingName,
-  buildingType,
-  companyName = 'PT Pengelola Gedung Jaksel',
-  nib = '0123456789012',
-  address = 'Jakarta Selatan',
-  permitStates,
-  onOpenConsultation,
   className = ''
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
-  const [activeTab, setActiveTab] = useState<'3d_interactive' | 'bim_4d'>('3d_interactive');
+  const [activeTab] = useState<'3d_interactive' | 'bim_4d'>('3d_interactive');
   
   // 4D Time Dimension State (Construction -> SLF 1 -> Periodic Audit -> 2026 Real-Time)
-  const [currentPhase, setCurrentPhase] = useState<TimePhase>('phase4');
+  const [currentPhase] = useState<TimePhase>('phase4');
   
   // Layer visibility
-  const [showStructure, setShowStructure] = useState<boolean>(true);
-  const [showFireSystem, setShowFireSystem] = useState<boolean>(true);
-  const [showMEP, setShowMEP] = useState<boolean>(true);
-  const [showFacade, setShowFacade] = useState<boolean>(true);
+  const [showStructure] = useState<boolean>(true);
+  const [showFireSystem] = useState<boolean>(true);
+  const [showMEP] = useState<boolean>(true);
+  const [showFacade] = useState<boolean>(true);
   
   // Exploded view slider (0 = normal, 1 = fully exploded)
   const [explodeFactor, setExplodeFactor] = useState<number>(0);
   const [isRotating, setIsRotating] = useState<boolean>(true);
-  const [selectedHotspot, setSelectedHotspot] = useState<HotspotData | null>(null);
-
-  // Hotspots definitions
-  const hotspots: HotspotData[] = [
-    {
-      id: 'hs-roof',
-      name: 'Lantai Atap & Penangkal Petir',
-      level: 'Rooftop (Lt. 36)',
-      system: 'K3 Instalasi & SLF',
-      status: permitStates?.slf?.selected ? 'Memenuhi Syarat' : 'Butuh Verifikasi',
-      permitName: 'Sertifikat Laik Fungsi (SLF)',
-      description: 'Sistem penangkal petir elektrostatis, helipad, gondola fasad, dan motor room lift.',
-      position: [0, 8.5, 0]
-    },
-    {
-      id: 'hs-mep-mid',
-      name: 'Mechanical Floor (MEP Hub)',
-      level: 'Lantai 18 (Zona Teknis)',
-      system: 'K3 Instalasi & Kelistrikan',
-      status: permitStates?.k3?.selected ? 'Memenuhi Syarat' : 'Rekomendasi Teknis',
-      permitName: 'Izin K3 Instalasi (Disnakertrans)',
-      description: 'Panel distribusi daya utama, transfer water pump, dan sistem chiller AC sentral.',
-      position: [0, 4.2, 0]
-    },
-    {
-      id: 'hs-podium',
-      name: 'Lobi Utama & Jaringan Damkar',
-      level: 'Podium (Lt. 1 - 3)',
-      system: 'Proteksi Kebakaran',
-      status: permitStates?.damkar?.selected ? 'Memenuhi Syarat' : 'Butuh Verifikasi',
-      permitName: 'Sertifikasi Proteksi Damkar',
-      description: 'Jaringan pipa hydrant riser, sprinkler aktif, fire alarm, dan tangga darurat bertekanan.',
-      position: [0, 1.2, 0]
-    },
-    {
-      id: 'hs-basement',
-      name: 'Basement & Ruang Genset',
-      level: 'Basement 1 - 3',
-      system: 'K3 Genset & Lingkungan',
-      status: permitStates?.env?.selected ? 'Memenuhi Syarat' : 'Rekomendasi Teknis',
-      permitName: 'Persetujuan Lingkungan / AMDAL',
-      description: 'Unit genset darurat tersertifikasi, ground water tank 400m³, dan instalasi STP limbah cair.',
-      position: [0, -1.5, 0]
-    }
-  ];
 
   // Three.js Scene Refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -489,41 +427,19 @@ export const Building4DViewer: React.FC<Building4DViewerProps> = ({
           </div>
         </div>
 
-        {/* View Switcher Tabs */}
-        <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 shrink-0">
-          <button
-            type="button"
-            onClick={() => setActiveTab('3d_interactive')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
-              activeTab === '3d_interactive'
-                ? 'bg-sky-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <RotateCw className="w-3.5 h-3.5" />
-            <span>4D Interaktif (WebGL)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('bim_4d')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1.5 ${
-              activeTab === 'bim_4d'
-                ? 'bg-sky-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>BIM 4D Blueprint</span>
-          </button>
+        {/* Live Engine Status Badge */}
+        <div className="flex items-center space-x-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 shrink-0">
+          <span className="flex h-2 w-2 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span className="text-xs font-bold text-sky-400">4D Interaktif (WebGL)</span>
         </div>
       </div>
 
-      {/* Main Visual Display Area */}
+      {/* Main Visual Display Area: Pure 3D Interactive WebGL */}
       <div className="relative min-h-[380px] sm:min-h-[460px] bg-slate-950 overflow-hidden flex flex-col justify-between">
-        
-        {/* TAB 1: 3D/4D Interactive WebGL Canvas */}
-        {activeTab === '3d_interactive' && (
-          <div className="relative w-full h-[380px] sm:h-[460px]">
+        <div className="relative w-full h-[380px] sm:h-[460px]">
             <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
 
             {/* Canvas Floating Overlay Controls */}
@@ -564,202 +480,7 @@ export const Building4DViewer: React.FC<Building4DViewerProps> = ({
                 className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-sky-500"
               />
             </div>
-
-            {/* Interactive Hotspot Buttons Overlay (Floating on Right) */}
-            <div className="absolute top-3 right-3 space-y-1.5 z-10 max-w-[200px]">
-              <span className="text-[9px] uppercase font-bold tracking-wider text-slate-400 bg-slate-950/90 px-2 py-0.5 rounded border border-slate-800 block text-right">
-                Hotspot Inspeksi 4D
-              </span>
-              {hotspots.map((hs) => (
-                <button
-                  key={hs.id}
-                  type="button"
-                  onClick={() => setSelectedHotspot(selectedHotspot?.id === hs.id ? null : hs)}
-                  className={`w-full text-left p-2 rounded-xl text-[11px] font-semibold transition border backdrop-blur flex items-center justify-between shadow-xs ${
-                    selectedHotspot?.id === hs.id
-                      ? 'bg-sky-500 text-white border-sky-400 shadow-md ring-2 ring-sky-300/40'
-                      : 'bg-slate-900/90 hover:bg-slate-800 text-slate-200 border-slate-800'
-                  }`}
-                >
-                  <div className="truncate mr-1">
-                    <span className="block font-bold truncate">{hs.name}</span>
-                    <span className="text-[9px] text-slate-400 block truncate">{hs.level}</span>
-                  </div>
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${
-                    hs.status === 'Memenuhi Syarat' ? 'bg-emerald-400' : 'bg-amber-400'
-                  }`} />
-                </button>
-              ))}
-            </div>
           </div>
-        )}
-
-        {/* TAB 2: BIM 4D Architectural Blueprint Render */}
-        {activeTab === 'bim_4d' && (
-          <div className="relative w-full h-[380px] sm:h-[460px] flex items-center justify-center bg-black">
-            <img
-              src={JAKSEL_4D_BIM_IMG}
-              alt="Jakarta Innovation Tower 4D Digital Twin"
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-contain"
-            />
-            <div className="absolute top-4 left-4 bg-slate-950/85 backdrop-blur p-3 rounded-2xl border border-slate-800 max-w-xs text-white">
-              <span className="text-[9px] font-extrabold uppercase text-sky-400 tracking-wider">
-                Dokumentasi 4D BIM Digital Twin
-              </span>
-              <h4 className="text-xs font-bold mt-0.5">{buildingName} • Jakarta Selatan</h4>
-              <p className="text-[10px] text-slate-300 mt-1 leading-snug">
-                Integrasi model struktur 3D dengan dimensi ke-4 (waktu pemeliharaan berkala, siklus uji SLF, dan sensor IoT proteksi gedung).
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Selected Hotspot Inspection Card (Floating Panel) */}
-        {selectedHotspot && (
-          <div className="p-4 bg-slate-950/95 backdrop-blur border-t border-slate-800 animate-slide-in text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="space-y-1">
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-extrabold text-sky-400">{selectedHotspot.level}</span>
-                <span className="text-slate-500">•</span>
-                <h4 className="text-sm font-bold text-white">{selectedHotspot.name}</h4>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  selectedHotspot.status === 'Memenuhi Syarat'
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                    : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-                }`}>
-                  {selectedHotspot.status}
-                </span>
-              </div>
-              <p className="text-xs text-slate-300 leading-snug max-w-2xl">
-                {selectedHotspot.description}
-              </p>
-              <div className="text-[10px] text-slate-400 font-mono">
-                Regulasi Terkait: <strong className="text-white">{selectedHotspot.permitName}</strong>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2 shrink-0">
-              {onOpenConsultation && (
-                <button
-                  type="button"
-                  onClick={onOpenConsultation}
-                  className="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold transition shadow-sm"
-                >
-                  Minta Verifikasi PTSP
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setSelectedHotspot(null)}
-                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 4D Bottom Control Panel: Time Dimension & Layer Filter */}
-      <div className="p-4 sm:p-5 bg-slate-950 border-t border-slate-800 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-        
-        {/* Dimensi Ke-4: Siklus Waktu Kelaikan (Time Lifecycle Phase) */}
-        <div className="md:col-span-7 space-y-2">
-          <div className="flex items-center space-x-2 text-xs font-bold text-slate-200">
-            <Clock className="w-4 h-4 text-sky-400" />
-            <span>Dimensi Ke-4: Siklus Waktu Kelaikan Bangunan (4D Timeline)</span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-            {[
-              { id: 'phase1', label: 'Tahun 0: Desain/PBG', desc: 'Konstruksi Fisik' },
-              { id: 'phase2', label: 'Tahun 1: SLF Awal', desc: 'Uji Laik Pertama' },
-              { id: 'phase3', label: 'Tahun 5: Riksa Uji', desc: 'Perpanjangan Berkala' },
-              { id: 'phase4', label: '2026: Real-Time', desc: 'Kendali Aktif PTSP' }
-            ].map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setCurrentPhase(p.id as TimePhase)}
-                className={`p-2 rounded-xl text-left transition border ${
-                  currentPhase === p.id
-                    ? 'bg-sky-950/80 border-sky-400 text-white ring-1 ring-sky-400/50'
-                    : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <span className="block text-[11px] font-bold leading-tight truncate">{p.label}</span>
-                <span className="block text-[9px] text-slate-400 truncate mt-0.5">{p.desc}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Filter Layer Sistem Kelaikan */}
-        <div className="md:col-span-5 space-y-2">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-200">
-            <span className="flex items-center space-x-1.5">
-              <Sliders className="w-3.5 h-3.5 text-sky-400" />
-              <span>Layer Sistem Kelaikan:</span>
-            </span>
-            <span className="text-[10px] text-slate-400">Aktifkan/Sembunyikan</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              type="button"
-              onClick={() => setShowStructure(!showStructure)}
-              className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold transition border flex items-center justify-between ${
-                showStructure
-                  ? 'bg-blue-950/80 text-blue-200 border-blue-500/50'
-                  : 'bg-slate-900/40 text-slate-500 border-slate-800'
-              }`}
-            >
-              <span>🏗️ Struktur Core</span>
-              <span className={`w-1.5 h-1.5 rounded-full ${showStructure ? 'bg-sky-400' : 'bg-slate-600'}`} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowFireSystem(!showFireSystem)}
-              className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold transition border flex items-center justify-between ${
-                showFireSystem
-                  ? 'bg-rose-950/80 text-rose-200 border-rose-500/50'
-                  : 'bg-slate-900/40 text-slate-500 border-slate-800'
-              }`}
-            >
-              <span>🔥 Proteksi Damkar</span>
-              <span className={`w-1.5 h-1.5 rounded-full ${showFireSystem ? 'bg-rose-400' : 'bg-slate-600'}`} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowMEP(!showMEP)}
-              className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold transition border flex items-center justify-between ${
-                showMEP
-                  ? 'bg-amber-950/80 text-amber-200 border-amber-500/50'
-                  : 'bg-slate-900/40 text-slate-500 border-slate-800'
-              }`}
-            >
-              <span>⚡ K3 Lift &amp; MEP</span>
-              <span className={`w-1.5 h-1.5 rounded-full ${showMEP ? 'bg-amber-400' : 'bg-slate-600'}`} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowFacade(!showFacade)}
-              className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold transition border flex items-center justify-between ${
-                showFacade
-                  ? 'bg-sky-950/80 text-sky-200 border-sky-500/50'
-                  : 'bg-slate-900/40 text-slate-500 border-slate-800'
-              }`}
-            >
-              <span>🏢 Kaca Fasad</span>
-              <span className={`w-1.5 h-1.5 rounded-full ${showFacade ? 'bg-sky-400' : 'bg-slate-600'}`} />
-            </button>
-          </div>
-        </div>
-
       </div>
     </div>
   );
